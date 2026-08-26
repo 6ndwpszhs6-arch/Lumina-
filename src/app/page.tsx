@@ -19,7 +19,7 @@ type Tab = "home" | "calculator" | "scan" | "chat" | "forum" | "profile";
 
 export default function HomePage() {
   const [ready, setReady] = useState(false);
-  const [tab, setTab] = useState<Tab>("calculator");
+  const [tab, setTab] = useState<Tab>("home");
   const [profile, setProfile] = useState<UserProfile | undefined>();
   const [history, setHistory] = useState<TdeeLogEntry[]>([]);
   const [posts, setPosts] = useState<ForumPost[]>([]);

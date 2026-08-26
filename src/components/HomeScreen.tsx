@@ -6,7 +6,9 @@ import { computeLoggingStreak } from "@/lib/nutrition";
 import { useCountUp } from "@/lib/useCountUp";
 import type { ForumPost, Subscription, TdeeLogEntry, UserProfile } from "@/lib/types";
 import { FORUM_CATEGORIES } from "@/lib/types";
-import { Calculator, Crown, Flame, MessageCircle, Newspaper, ScanBarcode } from "lucide-react";
+import { Calculator, Crown, Flame, MessageCircle, Newspaper, ScanBarcode, X } from "lucide-react";
+
+const STREAK_MODAL_KEY = "metabo-streak-modal-shown";
 
 interface Props {
   profile: UserProfile | undefined;
@@ -19,6 +21,7 @@ interface Props {
 export default function HomeScreen({ profile, latest, recentPosts, subscription, onNavigate }: Props) {
   const [consumedToday, setConsumedToday] = useState(0);
   const [streak, setStreak] = useState(0);
+  const [showStreakModal, setShowStreakModal] = useState(false);
 
   useEffect(() => {
     db.foodLog.toArray().then((rows) => {
@@ -27,7 +30,14 @@ export default function HomeScreen({ profile, latest, recentPosts, subscription,
         .filter((r) => r.date === today)
         .reduce((sum, r) => sum + (r.nutrients.calories ?? 0), 0);
       setConsumedToday(Math.round(todayTotal));
-      setStreak(computeLoggingStreak(rows.map((r) => r.date)));
+
+      const currentStreak = computeLoggingStreak(rows.map((r) => r.date));
+      setStreak(currentStreak);
+
+      if (currentStreak > 0 && window.localStorage.getItem(STREAK_MODAL_KEY) !== today) {
+        window.localStorage.setItem(STREAK_MODAL_KEY, today);
+        requestAnimationFrame(() => setShowStreakModal(true));
+      }
     });
   }, []);
 
@@ -94,10 +104,13 @@ export default function HomeScreen({ profile, latest, recentPosts, subscription,
       </section>
 
       {streak > 0 && (
-        <p className="flex items-center justify-center gap-1.5 text-sm text-muted-foreground">
+        <button
+          onClick={() => setShowStreakModal(true)}
+          className="mx-auto flex items-center justify-center gap-1.5 text-sm text-muted-foreground transition hover:text-foreground"
+        >
           <Flame className="h-4 w-4 text-primary" />
           {streak}-day logging streak
-        </p>
+        </button>
       )}
 
       <section className="flex items-center justify-center gap-6 text-sm text-muted-foreground">
@@ -143,6 +156,41 @@ export default function HomeScreen({ profile, latest, recentPosts, subscription,
       <p className="pb-4 text-center text-xs text-muted-foreground">
         Educational content only — not a substitute for professional medical advice.
       </p>
+
+      {showStreakModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-6 backdrop-blur-sm"
+          onClick={() => setShowStreakModal(false)}
+        >
+          <div
+            className="relative w-full max-w-xs rounded-2xl border border-border bg-card p-6 text-center shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setShowStreakModal(false)}
+              aria-label="Close"
+              className="absolute right-3 top-3 text-muted-foreground transition hover:text-foreground"
+            >
+              <X className="h-4 w-4" />
+            </button>
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/15">
+              <Flame className="h-7 w-7 text-primary" />
+            </div>
+            <p className="mt-4 font-serif text-3xl font-semibold tracking-tight">{streak}-day streak</p>
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+              {streak === 1
+                ? "You logged today — keep it going tomorrow."
+                : "You've logged consistently — keep the momentum going."}
+            </p>
+            <button
+              onClick={() => setShowStreakModal(false)}
+              className="mt-5 w-full rounded-xl bg-primary py-2.5 text-sm font-medium text-primary-foreground"
+            >
+              Keep going
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
