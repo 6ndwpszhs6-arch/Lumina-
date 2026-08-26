@@ -17,7 +17,7 @@ const BARCODE_LIKE_PATTERN = /^\d{3,}$/;
 
 interface Props {
   subscription: Subscription;
-  onSetPremium: (enabled: boolean) => void;
+  onSubscriptionChange: (subscription: Subscription) => void;
 }
 
 function fmt(value: number | undefined, unit: string): string {
@@ -35,7 +35,7 @@ function sumProfiles(entries: FoodLogEntry[]): NutrientProfile {
   return total;
 }
 
-export default function ScanScreen({ subscription, onSetPremium }: Props) {
+export default function ScanScreen({ subscription, onSubscriptionChange }: Props) {
   const isPremium = subscription.tier === "premium";
 
   const [query, setQuery] = useState("");
@@ -253,7 +253,7 @@ export default function ScanScreen({ subscription, onSetPremium }: Props) {
             "Micronutrients: sodium, potassium, calcium, iron, vitamins",
             "Log scanned foods and see your daily nutrient totals",
           ]}
-          onUnlock={() => onSetPremium(true)}
+          onSubscriptionChange={onSubscriptionChange}
         />
       </div>
     );

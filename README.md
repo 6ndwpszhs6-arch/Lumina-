@@ -50,15 +50,23 @@ See `.env.example`. None are required just to browse the calculator — the app 
 
 Set `ANTHROPIC_API_KEY` in `.env.local`. The system prompt (in `src/app/api/chat/route.ts`) restricts the assistant to diet/nutrition/metabolism topics and metabolic conditions, and instructs it to defer medical decisions (diagnosis, medication, PKU protein limits, etc.) to the user's healthcare provider.
 
-## Premium subscription
+## Premium subscription (Stripe)
 
-The scanner and its macro/micronutrient detail are gated behind a `Subscription` record (`src/lib/subscription.ts`), stored locally per device. Right now there's no real payment processor wired up — the "Upgrade" button just flips that local flag so the gated UI can be built and tested (clearly labeled as a preview in the app itself).
+The scanner and its macro/micronutrient detail are gated behind a `Subscription` record (`src/lib/subscription.ts`), cached locally per device. Billing is real, via **Stripe Checkout** — there's no in-app account system, so **email is the link** between a Stripe customer and the on-device Premium flag: the Stripe webhook writes subscription status into a Supabase `subscriptions` table keyed by email, and the app looks it up by email both right after checkout and via the "Restore access" flow on a new device.
 
-**This is deliberate, not a shortcut**: Apple requires digital subscriptions that unlock features inside an iOS app to go through StoreKit / In-App Purchase — a third-party processor like Stripe isn't allowed for that and risks App Store rejection. The recommended path to real billing:
+(Metabo is a web app/PWA, not a native iOS app anymore, so Stripe is used directly rather than Apple's StoreKit/In-App Purchase — that requirement only applies to purchases made from inside a native app binary.)
 
-1. Set up **[RevenueCat](https://www.revenuecat.com)** (handles StoreKit receipt validation and cross-device entitlement without needing your own backend/accounts system) and create a subscription product in App Store Connect.
-2. Add the RevenueCat Capacitor SDK, initialize it in the native shell, and replace `setPremium`/`getSubscription` in `src/lib/subscription.ts` with a call to RevenueCat's `getCustomerInfo()` entitlement check.
-3. Keep the local `Subscription` table as an on-device cache of that entitlement so the app still works offline.
+### Setup
+
+1. Create a free account at [stripe.com](https://stripe.com).
+2. In the Stripe Dashboard, create a **Product** (e.g. "Metabo Premium") with a recurring **Price** (e.g. $4.99/month). Copy its Price ID (`price_...`).
+3. Under **Developers → API keys**, copy your **Secret key** (`sk_test_...` while testing, `sk_live_...` once ready for real charges).
+4. Under **Developers → Webhooks**, add an endpoint pointing at `https://<your-deployment>/api/subscription/webhook`, subscribed to at least: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`. Copy its **Signing secret** (`whsec_...`).
+5. In your Supabase project's SQL editor, re-run `docs/supabase-schema.sql` — it now also creates the `subscriptions` table (safe to re-run; uses `create table if not exists`).
+6. Set `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, and `STRIPE_PRICE_ID` in `.env.local` (or your deployment's environment variables) — see `.env.example`.
+7. Test with [Stripe's test card](https://docs.stripe.com/testing) `4242 4242 4242 4242`, any future expiry, any CVC, before switching to live keys.
+
+The Premium price shown in the app's UI (`src/components/Paywall.tsx`, `src/components/ProfileScreen.tsx`) is plain text — if you change the price in Stripe, update those two spots to match.
 
 ## Building the iOS app (Capacitor)
 
@@ -88,7 +96,7 @@ Metabo provides general educational information only. It is not medical advice a
 
 ## Possible next steps
 
-1. Real billing via RevenueCat + StoreKit (see Premium subscription above)
+1. Real AI provider wired up for the chat assistant (currently shows an "under construction" placeholder — see `src/app/api/chat/route.ts`)
 2. On-device verification of the native camera barcode scanner (see note under Building the iOS app above)
 3. Push notifications for new forum posts
 4. Weight trend chart in the calculator history

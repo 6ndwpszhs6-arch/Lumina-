@@ -114,9 +114,12 @@ export type SubscriptionTier = "free" | "premium";
 export interface Subscription {
   id: "subscription";
   tier: SubscriptionTier;
-  // "preview" = unlocked via the in-app dev toggle, no real payment involved.
-  // "revenuecat" is reserved for when real StoreKit billing is wired up.
-  source: "preview" | "revenuecat";
+  // "preview" = the default free-tier record, no payment involved.
+  // "stripe" = a real subscription, synced from Stripe by email (see
+  // src/lib/subscription.ts) since the app has no login system.
+  source: "preview" | "stripe";
+  email?: string;
+  currentPeriodEnd?: string;
   updatedAt: string;
 }
 

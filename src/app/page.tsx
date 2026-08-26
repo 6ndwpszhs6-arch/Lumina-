@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { db, ensureSettings, getProfile } from "@/lib/db";
 import { fetchForumPosts } from "@/lib/forum";
-import { getSubscription, setPremium } from "@/lib/subscription";
+import { confirmFromCheckoutSession, getSubscription } from "@/lib/subscription";
 import type { ForumPost, Subscription, TdeeLogEntry, UserProfile } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import HomeScreen from "@/components/HomeScreen";
@@ -40,10 +40,28 @@ export default function HomePage() {
 
   const latest = history.slice().sort((a, b) => b.date.localeCompare(a.date))[0];
 
-  async function handleSetPremium(enabled: boolean) {
-    const next = await setPremium(enabled);
-    setSubscription(next);
-  }
+  // Handle the redirect back from Stripe Checkout (see api/subscription/checkout).
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const checkout = params.get("checkout");
+    if (checkout !== "success" && checkout !== "cancel") return;
+
+    const sessionId = params.get("session_id");
+    (async () => {
+      if (checkout === "success" && sessionId) {
+        try {
+          const res = await fetch(`/api/subscription/session?id=${encodeURIComponent(sessionId)}`);
+          const data = await res.json();
+          if (res.ok && data.email) {
+            setSubscription(await confirmFromCheckoutSession(data.email, Boolean(data.active)));
+          }
+        } catch {
+          // Falls back to whatever subscription state was already loaded.
+        }
+      }
+      window.history.replaceState({}, "", window.location.pathname);
+    })();
+  }, []);
 
   if (!ready || !subscription) {
     return (
@@ -94,7 +112,7 @@ export default function HomePage() {
               }
             />
           )}
-          {tab === "scan" && <ScanScreen subscription={subscription} onSetPremium={handleSetPremium} />}
+          {tab === "scan" && <ScanScreen subscription={subscription} onSubscriptionChange={setSubscription} />}
           {tab === "chat" && (
             <UnderConstruction
               title="Chat assistant coming soon"
@@ -107,7 +125,7 @@ export default function HomePage() {
               profile={profile}
               onProfileSaved={setProfile}
               subscription={subscription}
-              onSetPremium={handleSetPremium}
+              onSubscriptionChange={setSubscription}
             />
           )}
         </div>

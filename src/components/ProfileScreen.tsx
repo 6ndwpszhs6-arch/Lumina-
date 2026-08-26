@@ -4,22 +4,72 @@ import { useState } from "react";
 import { db, saveProfile } from "@/lib/db";
 import { METABOLIC_CONDITIONS } from "@/lib/types";
 import type { MetabolicCondition, Subscription, UserProfile } from "@/lib/types";
-import { cn } from "@/lib/utils";
-import { Crown, Trash2 } from "lucide-react";
+import { cn, formatDate } from "@/lib/utils";
+import { openBillingPortal, startCheckout, syncSubscription } from "@/lib/subscription";
+import { Crown, Loader2, Trash2 } from "lucide-react";
 
 interface Props {
   profile: UserProfile | undefined;
   onProfileSaved: (profile: UserProfile) => void;
   subscription: Subscription;
-  onSetPremium: (enabled: boolean) => void;
+  onSubscriptionChange: (subscription: Subscription) => void;
 }
 
-export default function ProfileScreen({ profile, onProfileSaved, subscription, onSetPremium }: Props) {
+export default function ProfileScreen({ profile, onProfileSaved, subscription, onSubscriptionChange }: Props) {
   const [name, setName] = useState(profile?.name ?? "");
   const [conditions, setConditions] = useState<MetabolicCondition[]>(profile?.conditions ?? []);
   const [otherNote, setOtherNote] = useState(profile?.otherConditionNote ?? "");
   const [saved, setSaved] = useState(false);
   const [confirmingClear, setConfirmingClear] = useState(false);
+  const [subEmail, setSubEmail] = useState(subscription.email ?? "");
+  const [subLoading, setSubLoading] = useState<"subscribe" | "restore" | "manage" | null>(null);
+  const [subError, setSubError] = useState<string | null>(null);
+
+  async function handleSubscribe() {
+    const trimmed = subEmail.trim();
+    if (!trimmed) return;
+    setSubError(null);
+    setSubLoading("subscribe");
+    const { url, error } = await startCheckout(trimmed);
+    if (error || !url) {
+      setSubLoading(null);
+      setSubError(error ?? "Couldn't start checkout.");
+      return;
+    }
+    window.location.href = url;
+  }
+
+  async function handleRestore() {
+    const trimmed = subEmail.trim();
+    if (!trimmed) return;
+    setSubError(null);
+    setSubLoading("restore");
+    const { subscription: next, error } = await syncSubscription(trimmed);
+    setSubLoading(null);
+    if (error || !next) {
+      setSubError(error ?? "Couldn't check subscription status.");
+      return;
+    }
+    if (next.tier !== "premium") {
+      setSubError("No active subscription found for that email.");
+      return;
+    }
+    onSubscriptionChange(next);
+  }
+
+  async function handleManage() {
+    const trimmed = subscription.email;
+    if (!trimmed) return;
+    setSubError(null);
+    setSubLoading("manage");
+    const { url, error } = await openBillingPortal(trimmed);
+    setSubLoading(null);
+    if (error || !url) {
+      setSubError(error ?? "Couldn't open billing management.");
+      return;
+    }
+    window.location.href = url;
+  }
 
   const toggleCondition = (c: MetabolicCondition) => {
     setConditions((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
@@ -104,27 +154,61 @@ export default function ProfileScreen({ profile, onProfileSaved, subscription, o
       </button>
 
       <div className="rounded-xl border border-border bg-card p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5 text-sm font-medium">
-            <Crown className="h-4 w-4 text-primary" />
-            {subscription.tier === "premium" ? "Premium" : "Free plan"}
-          </div>
-          <button
-            onClick={() => onSetPremium(subscription.tier !== "premium")}
-            className={cn(
-              "rounded-lg px-3 py-1.5 text-sm font-medium",
-              subscription.tier === "premium"
-                ? "border border-border text-muted-foreground"
-                : "bg-primary text-primary-foreground"
-            )}
-          >
-            {subscription.tier === "premium" ? "Cancel preview" : "Upgrade"}
-          </button>
+        <div className="flex items-center gap-1.5 text-sm font-medium">
+          <Crown className="h-4 w-4 text-primary" />
+          {subscription.tier === "premium" ? "Premium" : "Free plan"}
         </div>
-        <p className="mt-2 text-xs text-muted-foreground">
-          Premium unlocks the food barcode scanner and full macro/micronutrient breakdowns. Real billing isn&apos;t
-          connected yet — this switch just previews the gated features on this device.
-        </p>
+
+        {subscription.tier === "premium" ? (
+          <>
+            <p className="mt-2 text-xs text-muted-foreground">
+              {subscription.currentPeriodEnd
+                ? `Renews ${formatDate(subscription.currentPeriodEnd)} · ${subscription.email}`
+                : subscription.email}
+            </p>
+            <button
+              onClick={handleManage}
+              disabled={subLoading === "manage"}
+              className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-border py-2 text-sm font-medium text-muted-foreground disabled:opacity-50"
+            >
+              {subLoading === "manage" && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              Manage subscription
+            </button>
+            {subError && <p className="mt-2 text-xs text-danger">{subError}</p>}
+          </>
+        ) : (
+          <>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Premium unlocks the food barcode scanner and full macro/micronutrient breakdowns.
+            </p>
+            <input
+              type="email"
+              value={subEmail}
+              onChange={(e) => setSubEmail(e.target.value)}
+              placeholder="you@example.com"
+              className="mt-3 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+            />
+            <div className="mt-2 flex gap-2">
+              <button
+                onClick={handleSubscribe}
+                disabled={subLoading !== null || !subEmail.trim()}
+                className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+              >
+                {subLoading === "subscribe" && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                Subscribe — $4.99/mo
+              </button>
+              <button
+                onClick={handleRestore}
+                disabled={subLoading !== null || !subEmail.trim()}
+                className="flex items-center justify-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium text-muted-foreground disabled:opacity-50"
+              >
+                {subLoading === "restore" && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                Restore
+              </button>
+            </div>
+            {subError && <p className="mt-2 text-xs text-danger">{subError}</p>}
+          </>
+        )}
       </div>
 
       <div className="rounded-xl border border-danger/30 bg-danger/5 p-4">

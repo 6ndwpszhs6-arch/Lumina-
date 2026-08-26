@@ -27,3 +27,23 @@ create policy "public can read published posts"
 -- No insert/update/delete policy is defined for the anon/authenticated
 -- roles on purpose: only the service role key (used server-side by the
 -- admin API routes) can write, which bypasses RLS entirely.
+
+-- Metabo Premium subscriptions, synced from Stripe via webhook. Since the
+-- app has no login system, email is the link between a Stripe customer and
+-- the on-device Premium flag — see src/lib/subscription.ts.
+create table if not exists subscriptions (
+  email text primary key,
+  stripe_customer_id text not null,
+  stripe_subscription_id text,
+  status text not null default 'inactive',
+  current_period_end timestamptz,
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists subscriptions_customer_id_idx on subscriptions (stripe_customer_id);
+
+alter table subscriptions enable row level security;
+
+-- No policy is defined for anon/authenticated on purpose: the app never
+-- queries this table from the browser. Only the service role key (used
+-- server-side by the subscription API routes) can read or write it.
