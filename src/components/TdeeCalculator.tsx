@@ -14,7 +14,7 @@ import type {
   UserProfile,
 } from "@/lib/types";
 import { cn, formatDate } from "@/lib/utils";
-import { AlertTriangle, Flame } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 
 interface Props {
   profile: UserProfile | undefined;
@@ -92,10 +92,10 @@ export default function TdeeCalculator({ profile, history, onProfileSaved, onHis
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold">TDEE &amp; Calorie Calculator</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Estimate your Basal Metabolic Rate (BMR), Total Daily Energy Expenditure (TDEE), and a daily calorie
-          &amp; macro target based on your goal.
+        <h2 className="font-serif text-2xl font-semibold tracking-tight">Your Calorie Target</h2>
+        <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+          A couple of details give you a daily calorie and macro target built around your goal — grounded in the
+          Mifflin-St Jeor equation used by dietitians.
         </p>
       </div>
 
@@ -230,15 +230,19 @@ export default function TdeeCalculator({ profile, history, onProfileSaved, onHis
       </button>
 
       {result && (
-        <div className="space-y-3 rounded-2xl border border-border bg-card p-4">
-          <div className="flex items-center gap-2 text-primary">
-            <Flame className="h-4 w-4" />
-            <p className="text-sm font-medium">Your results</p>
+        <div className="space-y-5 rounded-2xl border border-border bg-card p-6">
+          <div className="text-center">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Your daily target</p>
+            <p className="mt-2 font-serif text-5xl font-semibold tracking-tight text-primary">
+              {result.targetCalories}
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">calories per day</p>
           </div>
-          <div className="grid grid-cols-2 gap-3 text-sm">
+          <div className="grid grid-cols-2 gap-3 border-t border-border pt-5 text-sm">
             <Stat label="BMR" value={`${result.bmr} kcal`} />
             <Stat label="TDEE" value={`${result.tdee} kcal`} />
-            <Stat label="Daily target" value={`${result.targetCalories} kcal`} highlight />
+          </div>
+          <div className="grid grid-cols-3 gap-3 text-sm">
             <Stat label="Protein" value={`${result.proteinG} g`} />
             <Stat label="Fat" value={`${result.fatG} g`} />
             <Stat label="Carbs" value={`${result.carbsG} g`} />
@@ -303,11 +307,11 @@ function SegButton({ active, onClick, label }: { active: boolean; onClick: () =>
   );
 }
 
-function Stat({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-xl bg-secondary p-3">
       <p className="text-xs text-muted-foreground">{label}</p>
-      <p className={cn("mt-0.5 font-semibold", highlight && "text-primary")}>{value}</p>
+      <p className="mt-0.5 font-semibold">{value}</p>
     </div>
   );
 }
