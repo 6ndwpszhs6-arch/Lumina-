@@ -341,9 +341,9 @@ function NutrientTable({ profile }: { profile: NutrientProfile }) {
         <p className="mb-1.5 text-xs font-medium text-muted-foreground">Macronutrients</p>
         <div className="grid grid-cols-2 gap-2 text-sm">
           {macros.map((f) => (
-            <div key={f.key} className="flex justify-between rounded-lg bg-secondary px-2.5 py-1.5">
-              <span className="text-muted-foreground">{f.label}</span>
-              <span className="font-medium">{fmt(profile[f.key], f.unit)}</span>
+            <div key={f.key} className="flex items-baseline justify-between gap-2 rounded-lg bg-secondary px-2.5 py-1.5">
+              <span className="truncate text-muted-foreground">{f.label}</span>
+              <span className="shrink-0 whitespace-nowrap font-medium">{fmt(profile[f.key], f.unit)}</span>
             </div>
           ))}
         </div>
@@ -352,9 +352,9 @@ function NutrientTable({ profile }: { profile: NutrientProfile }) {
         <p className="mb-1.5 text-xs font-medium text-muted-foreground">Micronutrients</p>
         <div className="grid grid-cols-2 gap-2 text-sm">
           {micros.map((f) => (
-            <div key={f.key} className="flex justify-between rounded-lg bg-secondary px-2.5 py-1.5">
-              <span className="text-muted-foreground">{f.label}</span>
-              <span className="font-medium">{fmt(profile[f.key], f.unit)}</span>
+            <div key={f.key} className="flex items-baseline justify-between gap-2 rounded-lg bg-secondary px-2.5 py-1.5">
+              <span className="truncate text-muted-foreground">{f.label}</span>
+              <span className="shrink-0 whitespace-nowrap font-medium">{fmt(profile[f.key], f.unit)}</span>
             </div>
           ))}
         </div>
