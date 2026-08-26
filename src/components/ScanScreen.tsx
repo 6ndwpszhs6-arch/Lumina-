@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Capacitor } from "@capacitor/core";
 import { db, generateId } from "@/lib/db";
-import { lookupBarcode, scaleNutrientProfile } from "@/lib/nutrition";
+import { lookupBarcode, scaleNutrientProfile, searchFoodsByName } from "@/lib/nutrition";
 import { GREEK_DISHES, greekDishToScannedFood } from "@/lib/greekFoods";
 import { NUTRIENT_FIELDS } from "@/lib/types";
 import type { FoodLogEntry, NutrientBasis, NutrientProfile, ScannedFood, Subscription } from "@/lib/types";
@@ -43,6 +43,10 @@ export default function ScanScreen({ subscription, onSetPremium }: Props) {
   const [todayLog, setTodayLog] = useState<FoodLogEntry[]>([]);
   const [scanning, setScanning] = useState(false);
   const [dishQuery, setDishQuery] = useState("");
+  const [nameQuery, setNameQuery] = useState("");
+  const [nameResults, setNameResults] = useState<ScannedFood[]>([]);
+  const [nameSearching, setNameSearching] = useState(false);
+  const [nameSearchError, setNameSearchError] = useState<string | null>(null);
   const isNative = Capacitor.isNativePlatform();
   const [cameraSupported] = useState(
     () => isNative || (typeof window !== "undefined" && "BarcodeDetector" in window)
@@ -82,6 +86,36 @@ export default function ScanScreen({ subscription, onSetPremium }: Props) {
     runLookup(code);
   }
 
+  useEffect(() => {
+    const query = nameQuery.trim();
+    const timer = setTimeout(async () => {
+      if (query.length < 2) {
+        setNameResults([]);
+        setNameSearching(false);
+        setNameSearchError(null);
+        return;
+      }
+      setNameSearching(true);
+      setNameSearchError(null);
+      const { foods, error: err } = await searchFoodsByName(query);
+      setNameSearching(false);
+      if (err) {
+        setNameSearchError(err);
+        return;
+      }
+      setNameResults(foods);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [nameQuery]);
+
+  function selectSearchResult(food: ScannedFood) {
+    setError(null);
+    setBarcode(food.barcode);
+    setResult(food);
+    setBasis(food.perServing ? "serving" : "100g");
+    setServings("1");
+  }
+
   function selectGreekDish(dish: (typeof GREEK_DISHES)[number]) {
     setError(null);
     setBarcode("");
@@ -113,6 +147,14 @@ export default function ScanScreen({ subscription, onSetPremium }: Props) {
             BarcodeFormat.UpcA,
             BarcodeFormat.UpcE,
             BarcodeFormat.QrCode,
+            BarcodeFormat.Code128,
+            BarcodeFormat.Code39,
+            BarcodeFormat.Code93,
+            BarcodeFormat.Codabar,
+            BarcodeFormat.Itf,
+            BarcodeFormat.DataMatrix,
+            BarcodeFormat.Pdf417,
+            BarcodeFormat.Aztec,
           ],
         });
         const value = barcodes[0]?.rawValue || barcodes[0]?.displayValue;
@@ -152,7 +194,23 @@ export default function ScanScreen({ subscription, onSetPremium }: Props) {
     // accessed dynamically, feature-detected before this function is ever called.
     const Detector = (window as unknown as { BarcodeDetector?: new (opts: { formats: string[] }) => { detect: (v: HTMLVideoElement) => Promise<{ rawValue: string }[]> } }).BarcodeDetector;
     if (!Detector || !videoRef.current) return;
-    const detector = new Detector({ formats: ["ean_13", "ean_8", "upc_a", "upc_e", "qr_code"] });
+    const detector = new Detector({
+      formats: [
+        "ean_13",
+        "ean_8",
+        "upc_a",
+        "upc_e",
+        "qr_code",
+        "code_128",
+        "code_39",
+        "code_93",
+        "codabar",
+        "itf",
+        "data_matrix",
+        "pdf417",
+        "aztec",
+      ],
+    });
 
     const tick = async () => {
       if (!videoRef.current || !streamRef.current) return;
@@ -209,7 +267,8 @@ export default function ScanScreen({ subscription, onSetPremium }: Props) {
         <Paywall
           title="Unlock the Food Scanner"
           features={[
-            "Scan any packaged food's barcode for instant nutrition",
+            "Scan any packaged food's barcode or QR code for instant nutrition",
+            "Search packaged foods by name when you don't have the barcode",
             "Search traditional Greek dishes that don't have a barcode",
             "Full macro breakdown: calories, protein, fat, sugar, fiber",
             "Micronutrients: sodium, potassium, calcium, iron, vitamins",
@@ -229,7 +288,8 @@ export default function ScanScreen({ subscription, onSetPremium }: Props) {
       <div>
         <h2 className="text-xl font-semibold">Food Scanner</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Scan or enter a barcode for packaged foods, or search traditional Greek dishes that don&apos;t have one.
+          Scan or enter a barcode, search packaged foods by name, or browse traditional Greek dishes that
+          don&apos;t have one.
         </p>
       </div>
 
@@ -249,6 +309,43 @@ export default function ScanScreen({ subscription, onSetPremium }: Props) {
         >
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
         </button>
+      </div>
+
+      <div className="space-y-2">
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            value={nameQuery}
+            onChange={(e) => setNameQuery(e.target.value)}
+            placeholder="Or search packaged foods by name (e.g. Nutella)"
+            className="w-full rounded-xl border border-border bg-card py-2.5 pl-10 pr-3.5 text-sm outline-none focus:ring-2 focus:ring-ring"
+          />
+          {nameSearching && (
+            <Loader2 className="absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+          )}
+        </div>
+        {nameSearchError && <p className="text-xs text-danger">{nameSearchError}</p>}
+        {nameQuery.trim().length >= 2 && !nameSearching && !nameSearchError && (
+          <div className="max-h-56 space-y-1.5 overflow-y-auto">
+            {nameResults.map((food) => (
+              <button
+                key={food.barcode}
+                onClick={() => selectSearchResult(food)}
+                className="flex w-full items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-left text-sm transition active:scale-[0.99]"
+              >
+                {food.imageUrl && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={food.imageUrl} alt="" className="h-8 w-8 shrink-0 rounded object-cover" />
+                )}
+                <span className="min-w-0 flex-1 truncate font-medium">{food.productName}</span>
+                {food.brand && <span className="shrink-0 truncate text-xs text-muted-foreground">{food.brand}</span>}
+              </button>
+            ))}
+            {nameResults.length === 0 && (
+              <p className="py-2 text-center text-xs text-muted-foreground">No foods match &quot;{nameQuery}&quot;.</p>
+            )}
+          </div>
+        )}
       </div>
 
       {cameraSupported && (

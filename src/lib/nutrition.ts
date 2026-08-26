@@ -11,6 +11,17 @@ export async function lookupBarcode(barcode: string): Promise<{ food?: ScannedFo
   }
 }
 
+export async function searchFoodsByName(query: string): Promise<{ foods: ScannedFood[]; error?: string }> {
+  try {
+    const res = await fetch(`/api/nutrition/search?q=${encodeURIComponent(query)}`);
+    const data = await res.json();
+    if (!res.ok) return { foods: [], error: data.error ?? "Search failed." };
+    return { foods: (data.foods as ScannedFood[]) ?? [] };
+  } catch {
+    return { foods: [], error: "Network error — check your connection and try again." };
+  }
+}
+
 export function scaleNutrientProfile(profile: NutrientProfile, factor: number): NutrientProfile {
   const scaled: NutrientProfile = {};
   (Object.keys(profile) as (keyof NutrientProfile)[]).forEach((k) => {
