@@ -9,26 +9,28 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.1",
+    "@capacitor-mlkit/barcode-scanning": "^7.5.0",
+    "@capacitor/core": "^7.0.0",
+    "@capacitor/ios": "^7.0.0",
+    "@supabase/supabase-js": "^2.47.10",
+    "@zxing/browser": "^0.2.1",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.1.0",
+    "dexie": "^4.0.11",
+    "lucide-react": "^0.468.0",
     "next": "16.3.2",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "dexie": "^4.0.11",
-    "date-fns": "^4.1.0",
-    "uuid": "^11.0.3",
-    "lucide-react": "^0.468.0",
-    "clsx": "^2.1.1",
-    "tailwind-merge": "^2.5.5",
-    "class-variance-authority": "^0.7.1",
-    "@anthropic-ai/sdk": "^0.32.1",
-    "@supabase/supabase-js": "^2.47.10",
-    "server-only": "^0.0.1",
     "react-markdown": "^9.0.1",
     "remark-gfm": "^4.0.0",
-    "@capacitor/core": "^7.0.0",
-    "@capacitor/ios": "^7.0.0",
-    "@capacitor-mlkit/barcode-scanning": "^7.5.0"
+    "server-only": "^0.0.1",
+    "tailwind-merge": "^2.5.5",
+    "uuid": "^11.0.3"
   },
   "devDependencies": {
+    "@capacitor/cli": "^7.0.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
@@ -36,7 +38,6 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.2",
     "tailwindcss": "^4",
-    "typescript": "^5",
-    "@capacitor/cli": "^7.0.0"
+    "typescript": "^5"
   }
 }

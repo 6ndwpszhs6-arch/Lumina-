@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Capacitor } from "@capacitor/core";
+import type { IScannerControls } from "@zxing/browser";
 import { db, generateId } from "@/lib/db";
 import { lookupBarcode, scaleNutrientProfile, searchFoodsByName } from "@/lib/nutrition";
 import { GREEK_DISHES, greekDishToScannedFood } from "@/lib/greekFoods";
@@ -9,7 +10,10 @@ import { NUTRIENT_FIELDS } from "@/lib/types";
 import type { FoodLogEntry, NutrientBasis, NutrientProfile, ScannedFood, Subscription } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import Paywall from "./Paywall";
-import { Camera, Loader2, Search, Trash2, X } from "lucide-react";
+import { Barcode, Camera, Loader2, Search, Trash2, X } from "lucide-react";
+
+const BARCODE_PATTERN = /^\d{6,14}$/;
+const BARCODE_LIKE_PATTERN = /^\d{3,}$/;
 
 interface Props {
   subscription: Subscription;
@@ -34,7 +38,7 @@ function sumProfiles(entries: FoodLogEntry[]): NutrientProfile {
 export default function ScanScreen({ subscription, onSetPremium }: Props) {
   const isPremium = subscription.tier === "premium";
 
-  const [barcode, setBarcode] = useState("");
+  const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ScannedFood | null>(null);
@@ -42,21 +46,20 @@ export default function ScanScreen({ subscription, onSetPremium }: Props) {
   const [servings, setServings] = useState("1");
   const [todayLog, setTodayLog] = useState<FoodLogEntry[]>([]);
   const [scanning, setScanning] = useState(false);
-  const [dishQuery, setDishQuery] = useState("");
-  const [nameQuery, setNameQuery] = useState("");
   const [nameResults, setNameResults] = useState<ScannedFood[]>([]);
   const [nameSearching, setNameSearching] = useState(false);
   const [nameSearchError, setNameSearchError] = useState<string | null>(null);
   const isNative = Capacitor.isNativePlatform();
   const [cameraSupported] = useState(
-    () => isNative || (typeof window !== "undefined" && "BarcodeDetector" in window)
+    () => isNative || (typeof navigator !== "undefined" && Boolean(navigator.mediaDevices?.getUserMedia))
   );
 
   const videoRef = useRef<HTMLVideoElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const rafRef = useRef<number | null>(null);
+  const controlsRef = useRef<IScannerControls | null>(null);
 
   const today = new Date().toISOString().slice(0, 10);
+  const trimmedQuery = query.trim();
+  const isBarcodeQuery = BARCODE_PATTERN.test(trimmedQuery);
 
   useEffect(() => {
     if (!isPremium) return;
@@ -78,18 +81,13 @@ export default function ScanScreen({ subscription, onSetPremium }: Props) {
     setResult(food);
     setBasis(food.perServing ? "serving" : "100g");
     setServings("1");
-  }
-
-  function handleManualLookup() {
-    const code = barcode.trim();
-    if (!code) return;
-    runLookup(code);
+    setQuery("");
   }
 
   useEffect(() => {
-    const query = nameQuery.trim();
+    const trimmed = query.trim();
     const timer = setTimeout(async () => {
-      if (query.length < 2) {
+      if (trimmed.length < 2 || BARCODE_LIKE_PATTERN.test(trimmed)) {
         setNameResults([]);
         setNameSearching(false);
         setNameSearchError(null);
@@ -97,7 +95,7 @@ export default function ScanScreen({ subscription, onSetPremium }: Props) {
       }
       setNameSearching(true);
       setNameSearchError(null);
-      const { foods, error: err } = await searchFoodsByName(query);
+      const { foods, error: err } = await searchFoodsByName(trimmed);
       setNameSearching(false);
       if (err) {
         setNameSearchError(err);
@@ -106,28 +104,28 @@ export default function ScanScreen({ subscription, onSetPremium }: Props) {
       setNameResults(foods);
     }, 400);
     return () => clearTimeout(timer);
-  }, [nameQuery]);
+  }, [query]);
 
   function selectSearchResult(food: ScannedFood) {
     setError(null);
-    setBarcode(food.barcode);
     setResult(food);
     setBasis(food.perServing ? "serving" : "100g");
     setServings("1");
+    setQuery("");
   }
 
   function selectGreekDish(dish: (typeof GREEK_DISHES)[number]) {
     setError(null);
-    setBarcode("");
     const food = greekDishToScannedFood(dish);
     setResult(food);
     setBasis("serving");
     setServings("1");
+    setQuery("");
   }
 
-  const matchingDishes = GREEK_DISHES.filter((d) =>
-    d.name.toLowerCase().includes(dishQuery.trim().toLowerCase())
-  );
+  const matchingDishes = trimmedQuery
+    ? GREEK_DISHES.filter((d) => d.name.toLowerCase().includes(trimmedQuery.toLowerCase()))
+    : [];
 
   async function startCamera() {
     setError(null);
@@ -158,77 +156,59 @@ export default function ScanScreen({ subscription, onSetPremium }: Props) {
           ],
         });
         const value = barcodes[0]?.rawValue || barcodes[0]?.displayValue;
-        if (value) {
-          setBarcode(value);
-          runLookup(value);
-        }
+        if (value) runLookup(value);
       } catch {
         setError("Camera scanning failed. Please enter the barcode manually below.");
       }
       return;
     }
 
+    // Safari (and every other modern browser) supports camera access via
+    // getUserMedia — it just has no native BarcodeDetector API. ZXing decodes
+    // frames itself (canvas + JS), so this path works everywhere getUserMedia
+    // does, including iOS Safari.
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      }
+      const { BrowserMultiFormatReader } = await import("@zxing/browser");
+      const { BarcodeFormat, DecodeHintType } = await import("@zxing/library");
+      const hints = new Map();
+      hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+        BarcodeFormat.EAN_13,
+        BarcodeFormat.EAN_8,
+        BarcodeFormat.UPC_A,
+        BarcodeFormat.UPC_E,
+        BarcodeFormat.QR_CODE,
+        BarcodeFormat.CODE_128,
+        BarcodeFormat.CODE_39,
+        BarcodeFormat.CODE_93,
+        BarcodeFormat.CODABAR,
+        BarcodeFormat.ITF,
+        BarcodeFormat.DATA_MATRIX,
+        BarcodeFormat.PDF_417,
+        BarcodeFormat.AZTEC,
+      ]);
+      const reader = new BrowserMultiFormatReader(hints);
+      if (!videoRef.current) return;
       setScanning(true);
-      pollForBarcode();
+      const controls = await reader.decodeFromConstraints(
+        { video: { facingMode: "environment" } },
+        videoRef.current,
+        (result) => {
+          if (!result) return;
+          stopCamera();
+          runLookup(result.getText());
+        }
+      );
+      controlsRef.current = controls;
     } catch {
-      setError("Couldn't access the camera. You can still enter a barcode manually below.");
+      setScanning(false);
+      setError("Couldn't access the camera — check camera permission in your browser settings, or enter the barcode manually below.");
     }
   }
 
   function stopCamera() {
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    streamRef.current?.getTracks().forEach((t) => t.stop());
-    streamRef.current = null;
+    controlsRef.current?.stop();
+    controlsRef.current = null;
     setScanning(false);
-  }
-
-  function pollForBarcode() {
-    // BarcodeDetector isn't in the TS DOM lib yet; declared as unknown and
-    // accessed dynamically, feature-detected before this function is ever called.
-    const Detector = (window as unknown as { BarcodeDetector?: new (opts: { formats: string[] }) => { detect: (v: HTMLVideoElement) => Promise<{ rawValue: string }[]> } }).BarcodeDetector;
-    if (!Detector || !videoRef.current) return;
-    const detector = new Detector({
-      formats: [
-        "ean_13",
-        "ean_8",
-        "upc_a",
-        "upc_e",
-        "qr_code",
-        "code_128",
-        "code_39",
-        "code_93",
-        "codabar",
-        "itf",
-        "data_matrix",
-        "pdf417",
-        "aztec",
-      ],
-    });
-
-    const tick = async () => {
-      if (!videoRef.current || !streamRef.current) return;
-      try {
-        const codes = await detector.detect(videoRef.current);
-        if (codes.length > 0) {
-          const value = codes[0].rawValue;
-          stopCamera();
-          setBarcode(value);
-          runLookup(value);
-          return;
-        }
-      } catch {
-        // keep polling — a single failed frame isn't fatal
-      }
-      rafRef.current = requestAnimationFrame(tick);
-    };
-    rafRef.current = requestAnimationFrame(tick);
   }
 
   async function addToLog() {
@@ -267,9 +247,8 @@ export default function ScanScreen({ subscription, onSetPremium }: Props) {
         <Paywall
           title="Unlock the Food Scanner"
           features={[
-            "Scan any packaged food's barcode or QR code for instant nutrition",
-            "Search packaged foods by name when you don't have the barcode",
-            "Search traditional Greek dishes that don't have a barcode",
+            "Scan any packaged food's barcode or QR code with your camera",
+            "Search packaged foods and traditional Greek dishes by name",
             "Full macro breakdown: calories, protein, fat, sugar, fiber",
             "Micronutrients: sodium, potassium, calcium, iron, vitamins",
             "Log scanned foods and see your daily nutrient totals",
@@ -288,45 +267,48 @@ export default function ScanScreen({ subscription, onSetPremium }: Props) {
       <div>
         <h2 className="text-xl font-semibold">Food Scanner</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Scan or enter a barcode, search packaged foods by name, or browse traditional Greek dishes that
-          don&apos;t have one.
+          Search any packaged food or traditional Greek dish, enter a barcode, or scan with your camera.
         </p>
-      </div>
-
-      <div className="flex gap-2">
-        <input
-          value={barcode}
-          onChange={(e) => setBarcode(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleManualLookup()}
-          inputMode="numeric"
-          placeholder="Enter barcode (e.g. 737628064502)"
-          className="flex-1 rounded-xl border border-border bg-card px-3.5 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring"
-        />
-        <button
-          onClick={handleManualLookup}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground"
-          aria-label="Look up"
-        >
-          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-        </button>
       </div>
 
       <div className="space-y-2">
         <div className="relative">
           <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
-            value={nameQuery}
-            onChange={(e) => setNameQuery(e.target.value)}
-            placeholder="Or search packaged foods by name (e.g. Nutella)"
-            className="w-full rounded-xl border border-border bg-card py-2.5 pl-10 pr-3.5 text-sm outline-none focus:ring-2 focus:ring-ring"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && isBarcodeQuery && runLookup(trimmedQuery)}
+            placeholder="Search foods, Greek dishes, or enter a barcode"
+            className="w-full rounded-xl border border-border bg-card py-2.5 pl-10 pr-9 text-sm outline-none focus:ring-2 focus:ring-ring"
           />
-          {nameSearching && (
+          {(loading || nameSearching) && (
             <Loader2 className="absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
           )}
         </div>
-        {nameSearchError && <p className="text-xs text-danger">{nameSearchError}</p>}
-        {nameQuery.trim().length >= 2 && !nameSearching && !nameSearchError && (
-          <div className="max-h-56 space-y-1.5 overflow-y-auto">
+
+        {trimmedQuery && (
+          <div className="max-h-72 space-y-1.5 overflow-y-auto">
+            {isBarcodeQuery && (
+              <button
+                onClick={() => runLookup(trimmedQuery)}
+                className="flex w-full items-center gap-2 rounded-xl border border-primary bg-primary/10 px-3 py-2 text-left text-sm font-medium text-primary transition active:scale-[0.99]"
+              >
+                <Barcode className="h-4 w-4 shrink-0" />
+                Look up barcode {trimmedQuery}
+              </button>
+            )}
+
+            {matchingDishes.map((dish) => (
+              <button
+                key={dish.slug}
+                onClick={() => selectGreekDish(dish)}
+                className="flex w-full items-center justify-between gap-2 rounded-xl border border-border bg-card px-3 py-2 text-left text-sm transition active:scale-[0.99]"
+              >
+                <span className="min-w-0 truncate font-medium">{dish.name}</span>
+                <span className="shrink-0 text-xs text-muted-foreground">Greek dish</span>
+              </button>
+            ))}
+
             {nameResults.map((food) => (
               <button
                 key={food.barcode}
@@ -341,9 +323,16 @@ export default function ScanScreen({ subscription, onSetPremium }: Props) {
                 {food.brand && <span className="shrink-0 truncate text-xs text-muted-foreground">{food.brand}</span>}
               </button>
             ))}
-            {nameResults.length === 0 && (
-              <p className="py-2 text-center text-xs text-muted-foreground">No foods match &quot;{nameQuery}&quot;.</p>
-            )}
+
+            {nameSearchError && <p className="py-1 text-xs text-danger">{nameSearchError}</p>}
+
+            {!isBarcodeQuery &&
+              !nameSearching &&
+              !nameSearchError &&
+              matchingDishes.length === 0 &&
+              nameResults.length === 0 && (
+                <p className="py-2 text-center text-xs text-muted-foreground">No matches for &quot;{trimmedQuery}&quot;.</p>
+              )}
           </div>
         )}
       </div>
@@ -359,43 +348,21 @@ export default function ScanScreen({ subscription, onSetPremium }: Props) {
       )}
       {!cameraSupported && (
         <p className="text-xs text-muted-foreground">
-          Camera scanning needs a browser with barcode-detection support (Chrome/Edge) — Safari on iOS doesn&apos;t
-          support it, but manual entry always works, and the native iOS app uses the device camera directly.
+          Camera scanning needs browser camera access, which isn&apos;t available here — manual entry and search
+          always work, and the native iOS app uses the device camera directly.
         </p>
       )}
 
-      {!isNative && scanning && (
-        <div className="overflow-hidden rounded-xl border border-border bg-black">
+      {!isNative && (
+        <div
+          className={cn(
+            "overflow-hidden rounded-xl border border-border bg-black",
+            !scanning && "hidden"
+          )}
+        >
           <video ref={videoRef} className="aspect-video w-full object-cover" muted playsInline />
         </div>
       )}
-
-      <div className="space-y-2 border-t border-border pt-4">
-        <p className="text-sm font-medium">
-          No barcode? Browse traditional Greek dishes
-        </p>
-        <input
-          value={dishQuery}
-          onChange={(e) => setDishQuery(e.target.value)}
-          placeholder="Search dishes (e.g. moussaka, feta, tzatziki)"
-          className="w-full rounded-xl border border-border bg-card px-3.5 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring"
-        />
-        <div className="max-h-56 space-y-1.5 overflow-y-auto">
-          {matchingDishes.map((dish) => (
-            <button
-              key={dish.slug}
-              onClick={() => selectGreekDish(dish)}
-              className="flex w-full items-center justify-between gap-2 rounded-xl border border-border bg-card px-3 py-2 text-left text-sm transition active:scale-[0.99]"
-            >
-              <span className="min-w-0 truncate font-medium">{dish.name}</span>
-              <span className="shrink-0 text-xs text-muted-foreground">{dish.category}</span>
-            </button>
-          ))}
-          {matchingDishes.length === 0 && (
-            <p className="py-2 text-center text-xs text-muted-foreground">No dishes match &quot;{dishQuery}&quot;.</p>
-          )}
-        </div>
-      </div>
 
       {error && <p className="text-sm text-danger">{error}</p>}
 
