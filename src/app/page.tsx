@@ -8,7 +8,7 @@ import type { ForumPost, Subscription, TdeeLogEntry, UserProfile } from "@/lib/t
 import { cn } from "@/lib/utils";
 import HomeScreen from "@/components/HomeScreen";
 import TdeeCalculator from "@/components/TdeeCalculator";
-import ChatScreen from "@/components/ChatScreen";
+import UnderConstruction from "@/components/UnderConstruction";
 import ForumScreen from "@/components/ForumScreen";
 import ScanScreen from "@/components/ScanScreen";
 import ProfileScreen from "@/components/ProfileScreen";
@@ -95,7 +95,12 @@ export default function HomePage() {
             />
           )}
           {tab === "scan" && <ScanScreen subscription={subscription} onSetPremium={handleSetPremium} />}
-          {tab === "chat" && <ChatScreen profile={profile} />}
+          {tab === "chat" && (
+            <UnderConstruction
+              title="Chat assistant coming soon"
+              description="We're rebuilding the diet & metabolism chat assistant. Check back soon — in the meantime, the calculator and food scanner are ready to use."
+            />
+          )}
           {tab === "forum" && <ForumScreen />}
           {tab === "profile" && (
             <ProfileScreen

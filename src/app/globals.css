@@ -150,9 +150,23 @@ h3 {
   }
 }
 
+/* Under-construction placeholder: a bar drifting back and forth */
+.animate-construction-bar {
+  animation: construction-bar 1.4s ease-in-out infinite;
+}
+@keyframes construction-bar {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(300%);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .logo-ring,
-  .animate-tab-in {
+  .animate-tab-in,
+  .animate-construction-bar {
     animation: none;
   }
 }
