@@ -13,8 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Lumina — Life Organizer",
-  description: "Offline-first life organizer for tasks, habits, goals, notes & more",
+  title: "Lumina — Diet & Metabolism",
+  description:
+    "TDEE & calorie calculator, a diet/metabolism assistant, and curated medical news for diabetes, PKU, and metabolic health.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,

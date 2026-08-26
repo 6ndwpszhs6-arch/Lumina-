@@ -1,7 +1,7 @@
 {
-  "name": "Lumina — Life Organizer",
+  "name": "Lumina — Diet & Metabolism",
   "short_name": "Lumina",
-  "description": "Offline-first life organizer for tasks, habits, goals, notes and more",
+  "description": "TDEE calculator, diet & metabolism assistant, and curated medical news",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0c0c0f",

@@ -1,160 +1,110 @@
-// Core data models for Lumina Life Organizer
+// Core data models for Lumina — Diet & Metabolism
 
-export type Priority = "low" | "medium" | "high" | "urgent";
-export type TaskStatus = "todo" | "in_progress" | "done" | "cancelled";
-export type HabitFrequency = "daily" | "weekly" | "custom";
-export type AreaOfLife =
-  | "health"
-  | "work"
-  | "personal"
-  | "finance"
-  | "relationships"
-  | "learning"
-  | "home"
+export type Sex = "male" | "female";
+export type UnitSystem = "metric" | "imperial";
+export type ActivityLevel =
+  | "sedentary"
+  | "light"
+  | "moderate"
+  | "active"
+  | "very_active";
+export type Goal = "lose" | "maintain" | "gain";
+
+export type MetabolicCondition =
+  | "diabetes_type1"
+  | "diabetes_type2"
+  | "pku"
+  | "thyroid"
+  | "metabolic_syndrome"
   | "other";
 
-export interface Tag {
-  id: string;
-  name: string;
-  color: string;
-  createdAt: string;
-}
+export const ACTIVITY_LEVELS: { value: ActivityLevel; label: string; multiplier: number }[] = [
+  { value: "sedentary", label: "Sedentary (little to no exercise)", multiplier: 1.2 },
+  { value: "light", label: "Light (exercise 1–3 days/week)", multiplier: 1.375 },
+  { value: "moderate", label: "Moderate (exercise 3–5 days/week)", multiplier: 1.55 },
+  { value: "active", label: "Active (exercise 6–7 days/week)", multiplier: 1.725 },
+  { value: "very_active", label: "Very active (hard exercise + physical job)", multiplier: 1.9 },
+];
 
-export interface Project {
-  id: string;
-  name: string;
-  description?: string;
-  area?: AreaOfLife;
-  color: string;
-  archived: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
+export const METABOLIC_CONDITIONS: { value: MetabolicCondition; label: string }[] = [
+  { value: "diabetes_type1", label: "Type 1 diabetes" },
+  { value: "diabetes_type2", label: "Type 2 diabetes" },
+  { value: "pku", label: "PKU (Phenylketonuria)" },
+  { value: "thyroid", label: "Thyroid condition" },
+  { value: "metabolic_syndrome", label: "Metabolic syndrome" },
+  { value: "other", label: "Other" },
+];
 
-export interface Task {
-  id: string;
-  title: string;
-  notes?: string;
-  status: TaskStatus;
-  priority: Priority;
-  dueDate?: string; // ISO date
-  dueTime?: string; // HH:mm
-  projectId?: string;
-  area?: AreaOfLife;
-  tagIds: string[];
-  recurring?: {
-    frequency: "daily" | "weekly" | "monthly" | "yearly";
-    interval: number;
-    daysOfWeek?: number[]; // 0=Sun ... 6=Sat
-    endDate?: string;
-  };
-  completedAt?: string;
+export interface UserProfile {
+  id: "profile";
+  sex?: Sex;
+  age?: number;
+  heightCm?: number;
+  weightKg?: number;
+  activityLevel?: ActivityLevel;
+  goal?: Goal;
+  units: UnitSystem;
+  conditions: MetabolicCondition[];
+  otherConditionNote?: string;
+  name?: string;
   createdAt: string;
   updatedAt: string;
-  estimatedMinutes?: number;
-  parentId?: string; // for subtasks
 }
 
-export interface Habit {
+export interface TdeeLogEntry {
   id: string;
-  title: string;
-  description?: string;
-  frequency: HabitFrequency;
-  targetDays?: number[]; // for weekly
-  targetPerWeek?: number;
-  color: string;
-  area?: AreaOfLife;
-  tagIds: string[];
-  archived: boolean;
-  createdAt: string;
-  updatedAt: string;
-  // Streak tracking
-  currentStreak: number;
-  longestStreak: number;
-  lastCompletedDate?: string;
-}
-
-export interface HabitLog {
-  id: string;
-  habitId: string;
   date: string; // YYYY-MM-DD
-  completed: boolean;
-  note?: string;
+  weightKg: number;
+  bmr: number;
+  tdee: number;
+  targetCalories: number;
+  proteinG: number;
+  fatG: number;
+  carbsG: number;
+  goal: Goal;
   createdAt: string;
 }
 
-export interface Note {
+export type ChatRole = "user" | "assistant";
+
+export interface ChatMessage {
+  id: string;
+  conversationId: string;
+  role: ChatRole;
+  content: string;
+  createdAt: string;
+}
+
+export type ForumCategory =
+  | "diabetes"
+  | "pku"
+  | "metabolism"
+  | "nutrition_research"
+  | "general_news";
+
+export const FORUM_CATEGORIES: { value: ForumCategory; label: string }[] = [
+  { value: "general_news", label: "General News" },
+  { value: "nutrition_research", label: "Nutrition Research" },
+  { value: "metabolism", label: "Metabolism" },
+  { value: "diabetes", label: "Diabetes" },
+  { value: "pku", label: "PKU" },
+];
+
+export interface ForumPost {
   id: string;
   title: string;
+  summary: string;
   content: string; // markdown
-  projectId?: string;
-  area?: AreaOfLife;
-  tagIds: string[];
-  pinned: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface Goal {
-  id: string;
-  title: string;
-  description?: string;
-  targetValue?: number;
-  currentValue: number;
-  unit?: string;
-  deadline?: string;
-  area?: AreaOfLife;
-  projectId?: string;
-  tagIds: string[];
-  status: "active" | "completed" | "abandoned";
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface Expense {
-  id: string;
-  amount: number;
-  currency: string;
-  description: string;
-  category: string;
-  date: string; // YYYY-MM-DD
-  projectId?: string;
-  area?: AreaOfLife;
-  tagIds: string[];
-  createdAt: string;
-}
-
-export interface Budget {
-  id: string;
-  name: string;
-  category: string;
-  limit: number;
-  currency: string;
-  period: "monthly" | "weekly" | "yearly";
-  createdAt: string;
-}
-
-export interface CalendarEvent {
-  id: string;
-  title: string;
-  description?: string;
-  start: string; // ISO datetime
-  end: string;
-  allDay: boolean;
-  taskId?: string;
-  projectId?: string;
-  area?: AreaOfLife;
-  color?: string;
+  category: ForumCategory;
+  sourceName: string;
+  sourceUrl: string;
+  published: boolean;
+  publishedAt: string; // ISO
   createdAt: string;
   updatedAt: string;
 }
 
 export interface AppSettings {
-  id: string; // always "settings"
-  theme: "dark" | "light" | "system";
-  currency: string;
-  weekStartsOn: 0 | 1; // 0=Sun, 1=Mon
-  aiEnabled: boolean;
-  syncEnabled: boolean;
-  name?: string;
+  id: "settings";
+  onboarded: boolean;
 }

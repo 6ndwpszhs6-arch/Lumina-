@@ -14,14 +14,3 @@ export function formatDate(dateStr?: string): string {
     day: "numeric",
   });
 }
-
-export function isToday(dateStr: string): boolean {
-  const today = new Date().toISOString().slice(0, 10);
-  return dateStr.slice(0, 10) === today;
-}
-
-export function isOverdue(dateStr?: string): boolean {
-  if (!dateStr) return false;
-  const today = new Date().toISOString().slice(0, 10);
-  return dateStr.slice(0, 10) < today;
-}
