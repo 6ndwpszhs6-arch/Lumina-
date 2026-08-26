@@ -7,6 +7,7 @@ import { db, generateId } from "@/lib/db";
 import { addFoodLogEntrySynced, removeFoodLogEntrySynced } from "@/lib/sync";
 import { lookupBarcode, scaleNutrientProfile, searchFoodsByName } from "@/lib/nutrition";
 import { GREEK_DISHES, commonsImageUrl, greekDishToScannedFood } from "@/lib/greekFoods";
+import { PACKAGED_FOODS, packagedFoodToScannedFood } from "@/lib/packagedFoods";
 import { NUTRIENT_FIELDS } from "@/lib/types";
 import type { FoodLogEntry, NutrientBasis, NutrientProfile, ScannedFood, Subscription } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -124,8 +125,25 @@ export default function ScanScreen({ subscription, onSubscriptionChange }: Props
     setQuery("");
   }
 
+  function selectPackagedFood(item: (typeof PACKAGED_FOODS)[number]) {
+    setError(null);
+    const food = packagedFoodToScannedFood(item);
+    setResult(food);
+    setBasis(food.perServing ? "serving" : "100g");
+    setServings("1");
+    setQuery("");
+  }
+
   const matchingDishes = trimmedQuery
     ? GREEK_DISHES.filter((d) => d.name.toLowerCase().includes(trimmedQuery.toLowerCase()))
+    : [];
+
+  const matchingPackaged = trimmedQuery
+    ? PACKAGED_FOODS.filter(
+        (f) =>
+          f.name.toLowerCase().includes(trimmedQuery.toLowerCase()) ||
+          f.brand.toLowerCase().includes(trimmedQuery.toLowerCase())
+      )
     : [];
 
   async function startCamera() {
@@ -317,6 +335,17 @@ export default function ScanScreen({ subscription, onSubscriptionChange }: Props
               </button>
             ))}
 
+            {matchingPackaged.map((item) => (
+              <button
+                key={item.barcode}
+                onClick={() => selectPackagedFood(item)}
+                className="flex w-full items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-left text-sm transition active:scale-[0.99]"
+              >
+                <span className="min-w-0 flex-1 truncate font-medium">{item.name}</span>
+                <span className="shrink-0 truncate text-xs text-muted-foreground">{item.brand}</span>
+              </button>
+            ))}
+
             {nameResults.map((food) => (
               <button
                 key={food.barcode}
@@ -338,6 +367,7 @@ export default function ScanScreen({ subscription, onSubscriptionChange }: Props
               !nameSearching &&
               !nameSearchError &&
               matchingDishes.length === 0 &&
+              matchingPackaged.length === 0 &&
               nameResults.length === 0 && (
                 <p className="py-2 text-center text-xs text-muted-foreground">No matches for &quot;{trimmedQuery}&quot;.</p>
               )}

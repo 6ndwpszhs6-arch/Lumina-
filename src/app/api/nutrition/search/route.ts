@@ -19,7 +19,7 @@ export async function GET(req: Request) {
   let res: Response;
   try {
     res = await fetch(
-      `${OFF_SEARCH}?search_terms=${encodeURIComponent(q)}&page_size=15&fields=code,product_name,brands,image_front_small_url,serving_size,nutriments`,
+      `${OFF_SEARCH}?search_terms=${encodeURIComponent(q)}&page_size=30&sort_by=unique_scans_n&fields=code,product_name,brands,image_front_small_url,serving_size,nutriments`,
       { headers: { "User-Agent": "Metabo-DietMetabolismApp/1.0" } }
     );
   } catch {

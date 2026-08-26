@@ -1,6 +1,10 @@
+import { findPackagedFoodByBarcode, packagedFoodToScannedFood } from "./packagedFoods";
 import type { NutrientProfile, ScannedFood } from "./types";
 
 export async function lookupBarcode(barcode: string): Promise<{ food?: ScannedFood; error?: string }> {
+  const local = findPackagedFoodByBarcode(barcode);
+  if (local) return { food: packagedFoodToScannedFood(local) };
+
   try {
     const res = await fetch(`/api/nutrition/${encodeURIComponent(barcode)}`);
     const data = await res.json();
