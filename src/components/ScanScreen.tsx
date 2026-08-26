@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Capacitor } from "@capacitor/core";
 import { db, generateId } from "@/lib/db";
-import { lookupBarcode } from "@/lib/nutrition";
+import { lookupBarcode, scaleNutrientProfile } from "@/lib/nutrition";
+import { GREEK_DISHES, greekDishToScannedFood } from "@/lib/greekFoods";
 import { NUTRIENT_FIELDS } from "@/lib/types";
 import type { FoodLogEntry, NutrientBasis, NutrientProfile, ScannedFood, Subscription } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -17,15 +18,6 @@ interface Props {
 
 function fmt(value: number | undefined, unit: string): string {
   return value === undefined ? "—" : `${value} ${unit}`;
-}
-
-function scaleProfile(profile: NutrientProfile, factor: number): NutrientProfile {
-  const scaled: NutrientProfile = {};
-  (Object.keys(profile) as (keyof NutrientProfile)[]).forEach((k) => {
-    const v = profile[k];
-    if (v !== undefined) scaled[k] = Math.round(v * factor * 10) / 10;
-  });
-  return scaled;
 }
 
 function sumProfiles(entries: FoodLogEntry[]): NutrientProfile {
@@ -50,6 +42,7 @@ export default function ScanScreen({ subscription, onSetPremium }: Props) {
   const [servings, setServings] = useState("1");
   const [todayLog, setTodayLog] = useState<FoodLogEntry[]>([]);
   const [scanning, setScanning] = useState(false);
+  const [dishQuery, setDishQuery] = useState("");
   const isNative = Capacitor.isNativePlatform();
   const [cameraSupported] = useState(
     () => isNative || (typeof window !== "undefined" && "BarcodeDetector" in window)
@@ -88,6 +81,19 @@ export default function ScanScreen({ subscription, onSetPremium }: Props) {
     if (!code) return;
     runLookup(code);
   }
+
+  function selectGreekDish(dish: (typeof GREEK_DISHES)[number]) {
+    setError(null);
+    setBarcode("");
+    const food = greekDishToScannedFood(dish);
+    setResult(food);
+    setBasis("serving");
+    setServings("1");
+  }
+
+  const matchingDishes = GREEK_DISHES.filter((d) =>
+    d.name.toLowerCase().includes(dishQuery.trim().toLowerCase())
+  );
 
   async function startCamera() {
     setError(null);
@@ -179,7 +185,7 @@ export default function ScanScreen({ subscription, onSetPremium }: Props) {
       brand: result.brand,
       basis,
       servings: qty,
-      nutrients: scaleProfile(base, qty),
+      nutrients: scaleNutrientProfile(base, qty),
       createdAt: new Date().toISOString(),
     };
     await db.foodLog.add(entry);
@@ -204,6 +210,7 @@ export default function ScanScreen({ subscription, onSetPremium }: Props) {
           title="Unlock the Food Scanner"
           features={[
             "Scan any packaged food's barcode for instant nutrition",
+            "Search traditional Greek dishes that don't have a barcode",
             "Full macro breakdown: calories, protein, fat, sugar, fiber",
             "Micronutrients: sodium, potassium, calcium, iron, vitamins",
             "Log scanned foods and see your daily nutrient totals",
@@ -222,7 +229,7 @@ export default function ScanScreen({ subscription, onSetPremium }: Props) {
       <div>
         <h2 className="text-xl font-semibold">Food Scanner</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Scan or enter a barcode to see macro &amp; micronutrient details from Open Food Facts.
+          Scan or enter a barcode for packaged foods, or search traditional Greek dishes that don&apos;t have one.
         </p>
       </div>
 
@@ -265,6 +272,33 @@ export default function ScanScreen({ subscription, onSetPremium }: Props) {
           <video ref={videoRef} className="aspect-video w-full object-cover" muted playsInline />
         </div>
       )}
+
+      <div className="space-y-2 border-t border-border pt-4">
+        <p className="text-sm font-medium">
+          No barcode? Browse traditional Greek dishes
+        </p>
+        <input
+          value={dishQuery}
+          onChange={(e) => setDishQuery(e.target.value)}
+          placeholder="Search dishes (e.g. moussaka, feta, tzatziki)"
+          className="w-full rounded-xl border border-border bg-card px-3.5 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring"
+        />
+        <div className="max-h-56 space-y-1.5 overflow-y-auto">
+          {matchingDishes.map((dish) => (
+            <button
+              key={dish.slug}
+              onClick={() => selectGreekDish(dish)}
+              className="flex w-full items-center justify-between gap-2 rounded-xl border border-border bg-card px-3 py-2 text-left text-sm transition active:scale-[0.99]"
+            >
+              <span className="min-w-0 truncate font-medium">{dish.name}</span>
+              <span className="shrink-0 text-xs text-muted-foreground">{dish.category}</span>
+            </button>
+          ))}
+          {matchingDishes.length === 0 && (
+            <p className="py-2 text-center text-xs text-muted-foreground">No dishes match &quot;{dishQuery}&quot;.</p>
+          )}
+        </div>
+      </div>
 
       {error && <p className="text-sm text-danger">{error}</p>}
 
@@ -328,8 +362,11 @@ export default function ScanScreen({ subscription, onSetPremium }: Props) {
           </div>
 
           <p className="text-xs text-muted-foreground">
-            Nutrition data from Open Food Facts, a community-maintained database — always check the actual package
-            label when precision matters (e.g. for insulin dosing or PKU Phe tracking).
+            {result.barcode.startsWith("greek:")
+              ? "Typical values for this dish — real nutrition varies with recipe and portion, so treat this as an estimate."
+              : "Nutrition data from Open Food Facts, a community-maintained database."}{" "}
+            Always check the actual package label when precision matters (e.g. for insulin dosing or PKU Phe
+            tracking).
           </p>
         </div>
       )}
