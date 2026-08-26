@@ -10,7 +10,7 @@ const config: CapacitorConfig = {
   appName: "Metabo",
   webDir: "public",
   server: {
-    url: "https://your-deployed-domain.example.com",
+    url: "https://metabo-six.vercel.app",
     cleartext: false,
   },
 };
