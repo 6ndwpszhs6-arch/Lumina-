@@ -5,7 +5,7 @@ A mobile-first app (PWA + Capacitor-ready for iOS) focused on diet and metabolis
 - **TDEE & Calorie Calculator** — BMR (Mifflin-St Jeor), TDEE, and a daily calorie + macro target based on your goal (lose/maintain/gain). Runs fully offline, stored on-device (IndexedDB via Dexie).
 - **Diet & Metabolism Assistant** — a chatbot scoped strictly to diet, nutrition, metabolism, and metabolic conditions (diabetes, PKU, thyroid issues, metabolic syndrome). It declines off-topic questions and never gives diagnoses, medication/insulin dosing, or individualized medical nutrition therapy — always deferring to the user's care team for that. Personal chat history stays on-device.
 - **News & Research forum** — a read-only feed of medical news and research, curated and published only by the app owner from medically approved sources. Regular users can read and filter by category; there is no user posting, which keeps the feed free of unmoderated/unverified content.
-- **Food barcode scanner (Premium)** — scan or enter a food's barcode to see its full macro (calories, protein, fat, saturated fat, carbs, sugar, fiber) and micronutrient (sodium, potassium, calcium, iron, cholesterol, vitamins A/C/D) breakdown, sourced from Open Food Facts. Scanned items can be added to an on-device daily log with running totals.
+- **Food barcode scanner (Premium)** — scan or enter a food's barcode to see its full macro (calories, protein, fat, saturated fat, carbs, sugar, fiber) and micronutrient (sodium, potassium, calcium, iron, cholesterol, vitamins A/C/D) breakdown, sourced from Open Food Facts. Scanned items can be added to an on-device daily log with running totals. Camera scanning uses the device's native camera (via ML Kit) when running as the built iOS/Android app, and the browser's `BarcodeDetector` API on web where supported (Chrome/Edge) — **note: Safari does not implement `BarcodeDetector` at all**, so camera scanning on the web/PWA version won't work in Safari on iPhone/iPad; manual barcode entry always works everywhere, and the native app path doesn't depend on Safari support at all.
 
 ## Tech stack
 
@@ -71,7 +71,10 @@ Metabo's native shell loads your deployed website in a WebView rather than bundl
    npx cap sync
    npx cap open ios
    ```
-4. Build and run from Xcode, or archive for TestFlight/App Store submission.
+4. In Xcode, add a `NSCameraUsageDescription` entry to `Info.plist` (e.g. "Used to scan food barcodes for nutrition lookup") — required by iOS whenever an app requests camera access, including via the barcode scanner's `@capacitor-mlkit/barcode-scanning` plugin.
+5. Build and run from Xcode, or archive for TestFlight/App Store submission.
+
+**Note on camera scanning**: the scanner's native-camera code path (`Capacitor.isNativePlatform()` branch in `src/components/ScanScreen.tsx`) has not been exercised on a real device or simulator — this sandbox has no Xcode/iOS toolchain to test it. It follows the plugin's documented API, and the build/typecheck pass, but treat the very first on-device test as a real test, not a formality.
 
 ## Data & privacy
 
@@ -85,9 +88,9 @@ Metabo provides general educational information only. It is not medical advice a
 ## Possible next steps
 
 1. Real billing via RevenueCat + StoreKit (see Premium subscription above)
-2. Native camera barcode scanning via a Capacitor plugin (e.g. `@capacitor-mlkit/barcode-scanning`) — the current camera scan path uses the browser's `BarcodeDetector` API, which isn't universally supported
+2. On-device verification of the native camera barcode scanner (see note under Building the iOS app above)
 3. Push notifications for new forum posts
 4. Weight trend chart in the calculator history
 5. Multi-language support
 6. Streaming chat responses
-7. Android build via Capacitor
+7. Android build via Capacitor (the ML Kit scanner plugin already supports Android; Android just hasn't been added/tested as a platform yet)

@@ -23,7 +23,10 @@
     "@supabase/supabase-js": "^2.47.10",
     "server-only": "^0.0.1",
     "react-markdown": "^9.0.1",
-    "remark-gfm": "^4.0.0"
+    "remark-gfm": "^4.0.0",
+    "@capacitor/core": "^7.0.0",
+    "@capacitor/ios": "^7.0.0",
+    "@capacitor-mlkit/barcode-scanning": "^7.5.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -34,8 +37,6 @@
     "eslint-config-next": "16.3.2",
     "tailwindcss": "^4",
     "typescript": "^5",
-    "@capacitor/cli": "^7.0.0",
-    "@capacitor/core": "^7.0.0",
-    "@capacitor/ios": "^7.0.0"
+    "@capacitor/cli": "^7.0.0"
   }
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Capacitor } from "@capacitor/core";
 import { db, generateId } from "@/lib/db";
 import { lookupBarcode } from "@/lib/nutrition";
 import { NUTRIENT_FIELDS } from "@/lib/types";
@@ -49,7 +50,10 @@ export default function ScanScreen({ subscription, onSetPremium }: Props) {
   const [servings, setServings] = useState("1");
   const [todayLog, setTodayLog] = useState<FoodLogEntry[]>([]);
   const [scanning, setScanning] = useState(false);
-  const [cameraSupported] = useState(() => typeof window !== "undefined" && "BarcodeDetector" in window);
+  const isNative = Capacitor.isNativePlatform();
+  const [cameraSupported] = useState(
+    () => isNative || (typeof window !== "undefined" && "BarcodeDetector" in window)
+  );
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -87,6 +91,35 @@ export default function ScanScreen({ subscription, onSetPremium }: Props) {
 
   async function startCamera() {
     setError(null);
+
+    if (isNative) {
+      try {
+        const { BarcodeScanner, BarcodeFormat } = await import("@capacitor-mlkit/barcode-scanning");
+        const { camera } = await BarcodeScanner.requestPermissions();
+        if (camera !== "granted" && camera !== "limited") {
+          setError("Camera permission was denied — enable it in Settings, or enter the barcode manually below.");
+          return;
+        }
+        const { barcodes } = await BarcodeScanner.scan({
+          formats: [
+            BarcodeFormat.Ean13,
+            BarcodeFormat.Ean8,
+            BarcodeFormat.UpcA,
+            BarcodeFormat.UpcE,
+            BarcodeFormat.QrCode,
+          ],
+        });
+        const value = barcodes[0]?.rawValue || barcodes[0]?.displayValue;
+        if (value) {
+          setBarcode(value);
+          runLookup(value);
+        }
+      } catch {
+        setError("Camera scanning failed. Please enter the barcode manually below.");
+      }
+      return;
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
       streamRef.current = stream;
@@ -213,21 +246,21 @@ export default function ScanScreen({ subscription, onSetPremium }: Props) {
 
       {cameraSupported && (
         <button
-          onClick={scanning ? stopCamera : startCamera}
+          onClick={!isNative && scanning ? stopCamera : startCamera}
           className="flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-card py-2.5 text-sm font-medium"
         >
-          {scanning ? <X className="h-4 w-4" /> : <Camera className="h-4 w-4" />}
-          {scanning ? "Stop scanning" : "Scan with camera"}
+          {!isNative && scanning ? <X className="h-4 w-4" /> : <Camera className="h-4 w-4" />}
+          {!isNative && scanning ? "Stop scanning" : "Scan with camera"}
         </button>
       )}
       {!cameraSupported && (
         <p className="text-xs text-muted-foreground">
-          Camera scanning needs a browser with barcode-detection support (or the native iOS app once built) — manual
-          entry always works.
+          Camera scanning needs a browser with barcode-detection support (Chrome/Edge) — Safari on iOS doesn&apos;t
+          support it, but manual entry always works, and the native iOS app uses the device camera directly.
         </p>
       )}
 
-      {scanning && (
+      {!isNative && scanning && (
         <div className="overflow-hidden rounded-xl border border-border bg-black">
           <video ref={videoRef} className="aspect-video w-full object-cover" muted playsInline />
         </div>
