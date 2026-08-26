@@ -13,19 +13,19 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Lumina — Diet & Metabolism",
+  title: "Metabo — Diet & Metabolism",
   description:
     "TDEE & calorie calculator, a diet/metabolism assistant, and curated medical news for diabetes, PKU, and metabolic health.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Lumina",
+    title: "Metabo",
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0c0c0f",
+  themeColor: "#060a16",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,

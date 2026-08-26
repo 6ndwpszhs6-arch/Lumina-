@@ -66,7 +66,7 @@ export default function ForumScreen() {
       <div>
         <h2 className="text-xl font-semibold">News &amp; Research</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Curated from medically approved sources — reviewed and published by the Lumina team.
+          Curated from medically approved sources — reviewed and published by the Metabo team.
         </p>
       </div>
 

@@ -3,16 +3,18 @@
 import { useState } from "react";
 import { db, saveProfile } from "@/lib/db";
 import { METABOLIC_CONDITIONS } from "@/lib/types";
-import type { MetabolicCondition, UserProfile } from "@/lib/types";
+import type { MetabolicCondition, Subscription, UserProfile } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { Trash2 } from "lucide-react";
+import { Crown, Trash2 } from "lucide-react";
 
 interface Props {
   profile: UserProfile | undefined;
   onProfileSaved: (profile: UserProfile) => void;
+  subscription: Subscription;
+  onSetPremium: (enabled: boolean) => void;
 }
 
-export default function ProfileScreen({ profile, onProfileSaved }: Props) {
+export default function ProfileScreen({ profile, onProfileSaved, subscription, onSetPremium }: Props) {
   const [name, setName] = useState(profile?.name ?? "");
   const [conditions, setConditions] = useState<MetabolicCondition[]>(profile?.conditions ?? []);
   const [otherNote, setOtherNote] = useState(profile?.otherConditionNote ?? "");
@@ -36,6 +38,8 @@ export default function ProfileScreen({ profile, onProfileSaved }: Props) {
       db.tdeeHistory.clear(),
       db.chatMessages.clear(),
       db.forumCache.clear(),
+      db.subscription.clear(),
+      db.foodLog.clear(),
     ]);
     window.location.reload();
   };
@@ -99,6 +103,30 @@ export default function ProfileScreen({ profile, onProfileSaved }: Props) {
         {saved ? "Saved ✓" : "Save"}
       </button>
 
+      <div className="rounded-xl border border-border bg-card p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 text-sm font-medium">
+            <Crown className="h-4 w-4 text-primary" />
+            {subscription.tier === "premium" ? "Premium" : "Free plan"}
+          </div>
+          <button
+            onClick={() => onSetPremium(subscription.tier !== "premium")}
+            className={cn(
+              "rounded-lg px-3 py-1.5 text-sm font-medium",
+              subscription.tier === "premium"
+                ? "border border-border text-muted-foreground"
+                : "bg-primary text-primary-foreground"
+            )}
+          >
+            {subscription.tier === "premium" ? "Cancel preview" : "Upgrade"}
+          </button>
+        </div>
+        <p className="mt-2 text-xs text-muted-foreground">
+          Premium unlocks the food barcode scanner and full macro/micronutrient breakdowns. Real billing isn&apos;t
+          connected yet — this switch just previews the gated features on this device.
+        </p>
+      </div>
+
       <div className="rounded-xl border border-danger/30 bg-danger/5 p-4">
         <p className="text-sm font-medium text-danger">Danger zone</p>
         <p className="mt-1 text-xs text-muted-foreground">
@@ -129,7 +157,7 @@ export default function ProfileScreen({ profile, onProfileSaved }: Props) {
         )}
       </div>
 
-      <p className="pb-4 text-center text-xs text-muted-foreground">Lumina · Diet &amp; Metabolism</p>
+      <p className="pb-4 text-center text-xs text-muted-foreground">Metabo · Diet &amp; Metabolism</p>
     </div>
   );
 }

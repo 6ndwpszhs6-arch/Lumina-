@@ -1,4 +1,4 @@
-// Core data models for Lumina — Diet & Metabolism
+// Core data models for Metabo — Diet & Metabolism
 
 export type Sex = "male" | "female";
 export type UnitSystem = "metric" | "imperial";
@@ -108,3 +108,76 @@ export interface AppSettings {
   id: "settings";
   onboarded: boolean;
 }
+
+export type SubscriptionTier = "free" | "premium";
+
+export interface Subscription {
+  id: "subscription";
+  tier: SubscriptionTier;
+  // "preview" = unlocked via the in-app dev toggle, no real payment involved.
+  // "revenuecat" is reserved for when real StoreKit billing is wired up.
+  source: "preview" | "revenuecat";
+  updatedAt: string;
+}
+
+// All fields optional because community food-database entries are often
+// incomplete — render "—" for anything missing rather than guessing.
+export interface NutrientProfile {
+  calories?: number;
+  proteinG?: number;
+  fatG?: number;
+  saturatedFatG?: number;
+  carbsG?: number;
+  sugarsG?: number;
+  fiberG?: number;
+  sodiumMg?: number;
+  potassiumMg?: number;
+  calciumMg?: number;
+  ironMg?: number;
+  cholesterolMg?: number;
+  vitaminAMcg?: number;
+  vitaminCMg?: number;
+  vitaminDMcg?: number;
+}
+
+export interface ScannedFood {
+  barcode: string;
+  productName: string;
+  brand?: string;
+  imageUrl?: string;
+  servingSize?: string;
+  per100g: NutrientProfile;
+  perServing?: NutrientProfile;
+}
+
+export type NutrientBasis = "100g" | "serving";
+
+export interface FoodLogEntry {
+  id: string;
+  date: string; // YYYY-MM-DD
+  barcode: string;
+  productName: string;
+  brand?: string;
+  basis: NutrientBasis;
+  servings: number;
+  nutrients: NutrientProfile; // already scaled by `servings`
+  createdAt: string;
+}
+
+export const NUTRIENT_FIELDS: { key: keyof NutrientProfile; label: string; unit: string; group: "macro" | "micro" }[] = [
+  { key: "calories", label: "Calories", unit: "kcal", group: "macro" },
+  { key: "proteinG", label: "Protein", unit: "g", group: "macro" },
+  { key: "fatG", label: "Fat", unit: "g", group: "macro" },
+  { key: "saturatedFatG", label: "Saturated fat", unit: "g", group: "macro" },
+  { key: "carbsG", label: "Carbohydrates", unit: "g", group: "macro" },
+  { key: "sugarsG", label: "Sugars", unit: "g", group: "macro" },
+  { key: "fiberG", label: "Fiber", unit: "g", group: "macro" },
+  { key: "sodiumMg", label: "Sodium", unit: "mg", group: "micro" },
+  { key: "potassiumMg", label: "Potassium", unit: "mg", group: "micro" },
+  { key: "calciumMg", label: "Calcium", unit: "mg", group: "micro" },
+  { key: "ironMg", label: "Iron", unit: "mg", group: "micro" },
+  { key: "cholesterolMg", label: "Cholesterol", unit: "mg", group: "micro" },
+  { key: "vitaminAMcg", label: "Vitamin A", unit: "mcg", group: "micro" },
+  { key: "vitaminCMg", label: "Vitamin C", unit: "mg", group: "micro" },
+  { key: "vitaminDMcg", label: "Vitamin D", unit: "mcg", group: "micro" },
+];

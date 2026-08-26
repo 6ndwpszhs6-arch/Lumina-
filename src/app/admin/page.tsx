@@ -5,7 +5,7 @@ import { mapRowToPost } from "@/lib/forum";
 import { FORUM_CATEGORIES } from "@/lib/types";
 import type { ForumCategory, ForumPost } from "@/lib/types";
 
-const SECRET_STORAGE_KEY = "lumina_admin_secret";
+const SECRET_STORAGE_KEY = "metabo_admin_secret";
 
 interface DraftPost {
   title: string;
@@ -119,7 +119,7 @@ export default function AdminPage() {
   if (!unlocked) {
     return (
       <div className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-4 px-6">
-        <h1 className="text-lg font-semibold">Lumina Admin</h1>
+        <h1 className="text-lg font-semibold">Metabo Admin</h1>
         <input
           type="password"
           value={secret}

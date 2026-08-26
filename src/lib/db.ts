@@ -5,28 +5,34 @@ import type {
   ChatMessage,
   ForumPost,
   AppSettings,
+  Subscription,
+  FoodLogEntry,
 } from "./types";
 
-export class LuminaDB extends Dexie {
+export class MetaboDB extends Dexie {
   profile!: Table<UserProfile, string>;
   tdeeHistory!: Table<TdeeLogEntry, string>;
   chatMessages!: Table<ChatMessage, string>;
   forumCache!: Table<ForumPost, string>;
   settings!: Table<AppSettings, string>;
+  subscription!: Table<Subscription, string>;
+  foodLog!: Table<FoodLogEntry, string>;
 
   constructor() {
-    super("LuminaMetabolismDB");
+    super("MetaboDB");
     this.version(1).stores({
       profile: "id",
       tdeeHistory: "id, date, createdAt",
       chatMessages: "id, conversationId, createdAt",
       forumCache: "id, category, publishedAt",
       settings: "id",
+      subscription: "id",
+      foodLog: "id, date, createdAt",
     });
   }
 }
 
-export const db = new LuminaDB();
+export const db = new MetaboDB();
 
 export function generateId(): string {
   return crypto.randomUUID();

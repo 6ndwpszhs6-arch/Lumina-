@@ -1,4 +1,4 @@
--- Lumina forum (news & research) schema.
+-- Metabo forum (news & research) schema.
 -- Run this once in your Supabase project's SQL editor.
 
 create table if not exists forum_posts (

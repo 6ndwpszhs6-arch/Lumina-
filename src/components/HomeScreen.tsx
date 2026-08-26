@@ -1,17 +1,18 @@
 "use client";
 
-import type { ForumPost, TdeeLogEntry, UserProfile } from "@/lib/types";
+import type { ForumPost, Subscription, TdeeLogEntry, UserProfile } from "@/lib/types";
 import { FORUM_CATEGORIES } from "@/lib/types";
-import { Calculator, MessageCircle, Newspaper } from "lucide-react";
+import { Calculator, Crown, MessageCircle, Newspaper, ScanBarcode } from "lucide-react";
 
 interface Props {
   profile: UserProfile | undefined;
   latest: TdeeLogEntry | undefined;
   recentPosts: ForumPost[];
-  onNavigate: (tab: "calculator" | "chat" | "forum") => void;
+  subscription: Subscription;
+  onNavigate: (tab: "calculator" | "scan" | "chat" | "forum") => void;
 }
 
-export default function HomeScreen({ profile, latest, recentPosts, onNavigate }: Props) {
+export default function HomeScreen({ profile, latest, recentPosts, subscription, onNavigate }: Props) {
   return (
     <div className="space-y-6">
       <section>
@@ -60,6 +61,22 @@ export default function HomeScreen({ profile, latest, recentPosts, onNavigate }:
         <div>
           <p className="font-medium">Ask the assistant</p>
           <p className="text-sm text-muted-foreground">Diet, metabolism, diabetes &amp; PKU questions</p>
+        </div>
+      </button>
+
+      <button
+        onClick={() => onNavigate("scan")}
+        className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card p-4 text-left transition active:scale-[0.99]"
+      >
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
+          <ScanBarcode className="h-5 w-5" />
+        </div>
+        <div>
+          <p className="flex items-center gap-1.5 font-medium">
+            Scan a food
+            {subscription.tier !== "premium" && <Crown className="h-3.5 w-3.5 text-primary" />}
+          </p>
+          <p className="text-sm text-muted-foreground">Barcode lookup with full macro &amp; micronutrient detail</p>
         </div>
       </button>
 
