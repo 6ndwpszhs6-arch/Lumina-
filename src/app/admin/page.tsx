@@ -29,6 +29,17 @@ const emptyDraft: DraftPost = {
   published: false,
 };
 
+interface SubscriptionRow {
+  email: string;
+  status: string;
+  source: string;
+  stripe_customer_id: string | null;
+  current_period_end: string | null;
+  updated_at: string;
+}
+
+const ACTIVE_STATUSES = new Set(["active", "trialing"]);
+
 function readStoredSecret(): string {
   if (typeof window === "undefined") return "";
   return sessionStorage.getItem(SECRET_STORAGE_KEY) ?? "";
@@ -42,9 +53,17 @@ export default function AdminPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [subs, setSubs] = useState<SubscriptionRow[]>([]);
+  const [subsLoading, setSubsLoading] = useState(false);
+  const [grantEmail, setGrantEmail] = useState("");
+  const [subActionEmail, setSubActionEmail] = useState<string | null>(null);
+  const [subStatus, setSubStatus] = useState<string | null>(null);
 
   useEffect(() => {
-    if (unlocked) loadPosts();
+    if (unlocked) {
+      loadPosts();
+      loadSubscriptions();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [unlocked]);
 
@@ -61,6 +80,33 @@ export default function AdminPage() {
       return;
     }
     setPosts(data.posts.map(mapRowToPost));
+  }
+
+  async function loadSubscriptions() {
+    setSubsLoading(true);
+    const res = await fetch("/api/admin/subscriptions", { headers: { "x-admin-secret": secret } });
+    const data = await res.json();
+    setSubsLoading(false);
+    if (res.ok) setSubs(data.subscriptions);
+  }
+
+  async function setSubscription(email: string, action: "grant" | "revoke") {
+    setSubStatus(null);
+    setSubActionEmail(email);
+    const res = await fetch("/api/admin/subscriptions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-admin-secret": secret },
+      body: JSON.stringify({ email, action }),
+    });
+    const data = await res.json();
+    setSubActionEmail(null);
+    if (!res.ok) {
+      setSubStatus(data.error ?? "Failed to update subscription.");
+      return;
+    }
+    setSubStatus(`${email} is now ${action === "grant" ? "Premium" : "Free"}.`);
+    setGrantEmail("");
+    loadSubscriptions();
   }
 
   function unlock() {
@@ -247,6 +293,64 @@ export default function AdminPage() {
           </div>
         ))}
         {!loading && posts.length === 0 && <p className="text-sm text-muted-foreground">No posts yet.</p>}
+      </div>
+
+      <div className="space-y-3 rounded-2xl border border-border bg-card p-4">
+        <h2 className="font-medium">Subscriptions</h2>
+        <p className="text-xs text-muted-foreground">
+          Grant or revoke Premium for an email directly, independent of Stripe (comps, refunds, support cases).
+          This never touches a real Stripe subscription — it only changes what the app reads for that email.
+        </p>
+        <div className="flex gap-2">
+          <input
+            type="email"
+            value={grantEmail}
+            onChange={(e) => setGrantEmail(e.target.value)}
+            placeholder="someone@example.com"
+            className="flex-1 rounded-xl border border-border bg-background px-3 py-2 outline-none focus:ring-2 focus:ring-ring"
+          />
+          <button
+            onClick={() => setSubscription(grantEmail.trim(), "grant")}
+            disabled={!grantEmail.trim() || subActionEmail === grantEmail.trim()}
+            className="rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+          >
+            Grant Premium
+          </button>
+        </div>
+        {subStatus && <p className="text-sm text-muted-foreground">{subStatus}</p>}
+
+        <div className="space-y-2 pt-2">
+          <h3 className="text-sm font-medium text-muted-foreground">
+            All subscriptions {subsLoading && "(loading…)"}
+          </h3>
+          {subs.map((sub) => {
+            const isPremium = ACTIVE_STATUSES.has(sub.status);
+            return (
+              <div
+                key={sub.email}
+                className="flex items-center justify-between gap-2 rounded-xl border border-border bg-background p-3"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">{sub.email}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {isPremium ? "Premium" : "Free"} · {sub.status} · {sub.source}
+                    {sub.source === "stripe" ? " (real billing)" : " (manual)"}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setSubscription(sub.email, isPremium ? "revoke" : "grant")}
+                  disabled={subActionEmail === sub.email}
+                  className="shrink-0 text-sm text-primary disabled:opacity-50"
+                >
+                  {isPremium ? "Revoke" : "Grant"}
+                </button>
+              </div>
+            );
+          })}
+          {!subsLoading && subs.length === 0 && (
+            <p className="text-sm text-muted-foreground">No subscriptions yet.</p>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -37,12 +37,19 @@ create policy "public can read published posts"
 -- the on-device Premium flag — see src/lib/subscription.ts.
 create table if not exists subscriptions (
   email text primary key,
-  stripe_customer_id text not null,
+  stripe_customer_id text,
   stripe_subscription_id text,
   status text not null default 'inactive',
+  -- 'stripe' = real billing via the webhook. 'manual' = comped/granted by
+  -- you via /admin, with no Stripe customer behind it.
+  source text not null default 'stripe',
   current_period_end timestamptz,
   updated_at timestamptz not null default now()
 );
+
+-- Safe to re-run on a table created before these existed.
+alter table subscriptions alter column stripe_customer_id drop not null;
+alter table subscriptions add column if not exists source text not null default 'stripe';
 
 create index if not exists subscriptions_customer_id_idx on subscriptions (stripe_customer_id);
 
