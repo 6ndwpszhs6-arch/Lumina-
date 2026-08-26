@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Capacitor } from "@capacitor/core";
 import type { IScannerControls } from "@zxing/browser";
 import { db, generateId } from "@/lib/db";
+import { addFoodLogEntrySynced, removeFoodLogEntrySynced } from "@/lib/sync";
 import { lookupBarcode, scaleNutrientProfile, searchFoodsByName } from "@/lib/nutrition";
 import { GREEK_DISHES, commonsImageUrl, greekDishToScannedFood } from "@/lib/greekFoods";
 import { NUTRIENT_FIELDS } from "@/lib/types";
@@ -226,12 +227,12 @@ export default function ScanScreen({ subscription, onSubscriptionChange }: Props
       nutrients: scaleNutrientProfile(base, qty),
       createdAt: new Date().toISOString(),
     };
-    await db.foodLog.add(entry);
+    await addFoodLogEntrySynced(entry);
     setTodayLog((prev) => [...prev, entry]);
   }
 
   async function removeEntry(id: string) {
-    await db.foodLog.delete(id);
+    await removeFoodLogEntrySynced(id);
     setTodayLog((prev) => prev.filter((e) => e.id !== id));
   }
 

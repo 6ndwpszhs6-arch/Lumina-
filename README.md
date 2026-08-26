@@ -68,6 +68,19 @@ The scanner and its macro/micronutrient detail are gated behind a `Subscription`
 
 The Premium price shown in the app's UI (`src/components/Paywall.tsx`, `src/components/ProfileScreen.tsx`) is plain text — if you change the price in Stripe, update those two spots to match.
 
+## User accounts (Supabase Auth)
+
+Signing in is **optional** — the app keeps working fully offline/local-only without an account, exactly as before. Logging in (magic link or Google) syncs profile, TDEE history, and food log to the account via `src/lib/sync.ts`, so they follow the user across devices. On first login, on-device data and the account's synced data are merged (newest profile wins; history/log/chat entries are unioned by id, so nothing on either side is discarded).
+
+Signing in also fixes the fragile part of the Stripe "Restore access" flow: once logged in, Premium is checked against the account's own email automatically, instead of the user having to remember and retype whatever email they subscribed with.
+
+### Setup
+
+1. In your Supabase project's SQL editor, re-run `docs/supabase-schema.sql` — it now also creates the `profiles`, `tdee_history`, `food_log`, and `chat_messages` tables (safe to re-run).
+2. Magic-link email sign-in works out of the box once `NEXT_PUBLIC_SUPABASE_URL`/`NEXT_PUBLIC_SUPABASE_ANON_KEY` are set (same vars as the forum) — no extra setup.
+3. For Google sign-in: in [Google Cloud Console](https://console.cloud.google.com), create an OAuth 2.0 Client ID (type "Web application"), then in Supabase go to **Authentication → Providers → Google**, enable it, and paste in the Client ID/Secret. Supabase's provider page shows the exact redirect URI to add to the Google OAuth client.
+4. Under **Authentication → URL Configuration** in Supabase, add your deployed domain (and `http://localhost:3000` for local dev) to the allowed redirect URLs, or magic links and OAuth redirects will fail.
+
 ## Building the iOS app (Capacitor)
 
 Metabo's native shell loads your deployed website in a WebView rather than bundling a static export, so the chat and admin API routes keep working unchanged.
@@ -87,8 +100,9 @@ Metabo's native shell loads your deployed website in a WebView rather than bundl
 
 ## Data & privacy
 
-- Profile, TDEE history, chat history, subscription state, and the food log are stored only in the device's local IndexedDB — never uploaded to any server (chat messages are sent transiently to the Anthropic API solely to generate a reply, and barcodes are sent transiently to Open Food Facts solely to look up nutrition; neither is stored server-side by this app).
-- The forum is the only shared/server-stored data, and it only ever contains content the app owner has published.
+- By default (no account), profile, TDEE history, chat history, subscription state, and the food log are stored only in the device's local IndexedDB — never uploaded to any server (chat messages are sent transiently to the Anthropic API solely to generate a reply, and barcodes are sent transiently to Open Food Facts solely to look up nutrition; neither is stored server-side by this app).
+- Signing in (optional — see "User accounts" above) uploads profile, TDEE history, and food log to Supabase, scoped to that account via Row Level Security so only the signed-in user can ever read or write their own rows.
+- The forum is the only always-shared/server-stored data, and it only ever contains content the app owner has published.
 
 ## Medical disclaimer
 

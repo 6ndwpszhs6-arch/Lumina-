@@ -1,11 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { db, saveProfile } from "@/lib/db";
+import type { User as AuthUser } from "@supabase/supabase-js";
+import { db } from "@/lib/db";
+import { deleteAllSyncedData, saveProfileSynced } from "@/lib/sync";
+import { signOut } from "@/lib/auth";
 import { METABOLIC_CONDITIONS } from "@/lib/types";
 import type { MetabolicCondition, Subscription, UserProfile } from "@/lib/types";
 import { cn, formatDate } from "@/lib/utils";
 import { openBillingPortal, startCheckout, syncSubscription } from "@/lib/subscription";
+import AccountCard from "./AccountCard";
 import { Crown, Loader2, Trash2 } from "lucide-react";
 
 interface Props {
@@ -13,15 +17,16 @@ interface Props {
   onProfileSaved: (profile: UserProfile) => void;
   subscription: Subscription;
   onSubscriptionChange: (subscription: Subscription) => void;
+  user: AuthUser | null;
 }
 
-export default function ProfileScreen({ profile, onProfileSaved, subscription, onSubscriptionChange }: Props) {
+export default function ProfileScreen({ profile, onProfileSaved, subscription, onSubscriptionChange, user }: Props) {
   const [name, setName] = useState(profile?.name ?? "");
   const [conditions, setConditions] = useState<MetabolicCondition[]>(profile?.conditions ?? []);
   const [otherNote, setOtherNote] = useState(profile?.otherConditionNote ?? "");
   const [saved, setSaved] = useState(false);
   const [confirmingClear, setConfirmingClear] = useState(false);
-  const [subEmail, setSubEmail] = useState(subscription.email ?? "");
+  const [subEmail, setSubEmail] = useState(subscription.email ?? user?.email ?? "");
   const [subLoading, setSubLoading] = useState<"subscribe" | "restore" | "manage" | null>(null);
   const [subError, setSubError] = useState<string | null>(null);
 
@@ -76,13 +81,17 @@ export default function ProfileScreen({ profile, onProfileSaved, subscription, o
   };
 
   const save = async () => {
-    const next = await saveProfile({ name, conditions, otherConditionNote: otherNote });
+    const next = await saveProfileSynced({ name, conditions, otherConditionNote: otherNote });
     onProfileSaved(next);
     setSaved(true);
     setTimeout(() => setSaved(false), 1500);
   };
 
   const clearAllData = async () => {
+    if (user) {
+      await deleteAllSyncedData(user.id);
+      await signOut();
+    }
     await Promise.all([
       db.profile.clear(),
       db.tdeeHistory.clear(),
@@ -99,10 +108,12 @@ export default function ProfileScreen({ profile, onProfileSaved, subscription, o
       <div>
         <h2 className="text-xl font-semibold">Profile &amp; Settings</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Your details are stored only on this device — they power the calculator and personalize chat, and are
-          never uploaded anywhere.
+          Your details power the calculator and personalize chat. They stay on this device unless you sign in
+          below to sync them.
         </p>
       </div>
+
+      <AccountCard user={user} />
 
       <label className="block space-y-1.5">
         <span className="text-sm font-medium text-muted-foreground">Name (optional)</span>
@@ -214,7 +225,7 @@ export default function ProfileScreen({ profile, onProfileSaved, subscription, o
       <div className="rounded-xl border border-danger/30 bg-danger/5 p-4">
         <p className="text-sm font-medium text-danger">Danger zone</p>
         <p className="mt-1 text-xs text-muted-foreground">
-          Permanently delete your profile, TDEE history, and chat history from this device.
+          Permanently delete your profile, TDEE history, and chat history from this device{user ? " and your account" : ""}.
         </p>
         {confirmingClear ? (
           <div className="mt-3 flex gap-2">

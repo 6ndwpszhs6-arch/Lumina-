@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { db, generateId, saveProfile } from "@/lib/db";
+import { generateId } from "@/lib/db";
+import { addTdeeEntrySynced, saveProfileSynced } from "@/lib/sync";
 import { calculateTdee, kgToLb, lbToKg, cmToFtIn, ftInToCm } from "@/lib/tdee";
 import { ACTIVITY_LEVELS, METABOLIC_CONDITIONS } from "@/lib/types";
 import type {
@@ -65,7 +66,7 @@ export default function TdeeCalculator({ profile, history, onProfileSaved, onHis
     const computed = calculateTdee({ sex, age: ageNum, heightCm, weightKg, activityLevel, goal });
     setResult(computed);
 
-    const savedProfile = await saveProfile({
+    const savedProfile = await saveProfileSynced({
       sex,
       age: ageNum,
       heightCm,
@@ -87,7 +88,7 @@ export default function TdeeCalculator({ profile, history, onProfileSaved, onHis
       createdAt: new Date().toISOString(),
       ...computed,
     };
-    await db.tdeeHistory.put(entry);
+    await addTdeeEntrySynced(entry);
     onHistoryAdded(entry);
   };
 

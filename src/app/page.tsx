@@ -1,9 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { User as AuthUser } from "@supabase/supabase-js";
 import { db, ensureSettings, getProfile } from "@/lib/db";
+import { onAuthChange } from "@/lib/auth";
+import { setCurrentUserId, syncAfterLogin } from "@/lib/sync";
 import { fetchForumPosts } from "@/lib/forum";
-import { confirmFromCheckoutSession, getSubscription } from "@/lib/subscription";
+import { confirmFromCheckoutSession, getSubscription, syncSubscription } from "@/lib/subscription";
 import type { ForumPost, Subscription, TdeeLogEntry, UserProfile } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import HomeScreen from "@/components/HomeScreen";
@@ -24,6 +27,8 @@ export default function HomePage() {
   const [history, setHistory] = useState<TdeeLogEntry[]>([]);
   const [posts, setPosts] = useState<ForumPost[]>([]);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const lastSyncedUserId = useRef<string | null>(null);
 
   useEffect(() => {
     async function init() {
@@ -61,6 +66,37 @@ export default function HomePage() {
       }
       window.history.replaceState({}, "", window.location.pathname);
     })();
+  }, []);
+
+  // Sign-in/out and, on a genuine sign-in, merge on-device data with the
+  // account (see src/lib/sync.ts) and try restoring Premium by the
+  // account's email if it isn't active locally yet.
+  useEffect(() => {
+    const unsubscribe = onAuthChange(async (nextUser) => {
+      setCurrentUserId(nextUser?.id ?? null);
+      setUser(nextUser);
+
+      if (!nextUser) {
+        lastSyncedUserId.current = null;
+        return;
+      }
+      if (lastSyncedUserId.current === nextUser.id) return;
+      lastSyncedUserId.current = nextUser.id;
+
+      await syncAfterLogin(nextUser.id);
+      const [p, h] = await Promise.all([getProfile(), db.tdeeHistory.toArray()]);
+      setProfile(p);
+      setHistory(h);
+
+      if (nextUser.email) {
+        const current = await getSubscription();
+        if (current.tier !== "premium") {
+          const { subscription: restored } = await syncSubscription(nextUser.email);
+          if (restored) setSubscription(restored);
+        }
+      }
+    });
+    return unsubscribe;
   }, []);
 
   if (!ready || !subscription) {
@@ -126,6 +162,7 @@ export default function HomePage() {
               onProfileSaved={setProfile}
               subscription={subscription}
               onSubscriptionChange={setSubscription}
+              user={user}
             />
           )}
         </div>
