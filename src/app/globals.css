@@ -116,3 +116,43 @@ h3 {
   padding-left: 0.75em;
   color: var(--muted-foreground);
 }
+
+/* Logo mark: draws itself in once on load, ring B trailing ring A */
+.logo-ring {
+  stroke-dasharray: 37.7;
+  stroke-dashoffset: 37.7;
+  animation: logo-draw 0.9s ease-out forwards;
+}
+.logo-ring-a {
+  animation-delay: 0.1s;
+}
+.logo-ring-b {
+  animation-delay: 0.35s;
+}
+@keyframes logo-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Tab content: quiet fade/rise on every screen change */
+.animate-tab-in {
+  animation: tab-in 0.22s ease-out;
+}
+@keyframes tab-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .logo-ring,
+  .animate-tab-in {
+    animation: none;
+  }
+}

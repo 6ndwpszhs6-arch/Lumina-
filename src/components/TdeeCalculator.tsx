@@ -14,6 +14,7 @@ import type {
   UserProfile,
 } from "@/lib/types";
 import { cn, formatDate } from "@/lib/utils";
+import { useCountUp } from "@/lib/useCountUp";
 import { AlertTriangle } from "lucide-react";
 
 interface Props {
@@ -34,6 +35,7 @@ export default function TdeeCalculator({ profile, history, onProfileSaved, onHis
   const [conditions, setConditions] = useState<MetabolicCondition[]>(profile?.conditions ?? []);
   const [result, setResult] = useState<ReturnType<typeof calculateTdee> | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const animatedTarget = useCountUp(result?.targetCalories ?? 0);
 
   const heightFtIn = heightCm ? cmToFtIn(heightCm) : { ft: 5, inches: 6 };
   const weightLb = weightKg ? Math.round(kgToLb(weightKg)) : undefined;
@@ -234,7 +236,7 @@ export default function TdeeCalculator({ profile, history, onProfileSaved, onHis
           <div className="text-center">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Your daily target</p>
             <p className="mt-2 font-serif text-5xl font-semibold tracking-tight text-primary">
-              {result.targetCalories}
+              {animatedTarget}
             </p>
             <p className="mt-1 text-sm text-muted-foreground">calories per day</p>
           </div>

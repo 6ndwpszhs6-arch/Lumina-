@@ -12,7 +12,8 @@ import ChatScreen from "@/components/ChatScreen";
 import ForumScreen from "@/components/ForumScreen";
 import ScanScreen from "@/components/ScanScreen";
 import ProfileScreen from "@/components/ProfileScreen";
-import { Calculator, Crown, Home, MessageCircle, Newspaper, ScanBarcode, Sparkles, User } from "lucide-react";
+import Logo from "@/components/Logo";
+import { Calculator, Crown, Home, MessageCircle, Newspaper, ScanBarcode, User } from "lucide-react";
 
 type Tab = "home" | "calculator" | "scan" | "chat" | "forum" | "profile";
 
@@ -48,7 +49,7 @@ export default function HomePage() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
-          <div className="h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          <Logo className="h-9 w-9 text-primary" />
           <p className="text-sm text-muted-foreground">Loading Metabo…</p>
         </div>
       </div>
@@ -60,7 +61,7 @@ export default function HomePage() {
       <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-md safe-top">
         <div className="mx-auto flex h-14 max-w-lg items-center gap-2 px-4">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/20">
-            <Sparkles className="h-4 w-4 text-primary" />
+            <Logo className="h-4 w-4 text-primary" />
           </div>
           <h1 className="text-base font-semibold tracking-tight">Metabo</h1>
           <span className="text-xs text-muted-foreground">Diet &amp; Metabolism</span>
@@ -73,36 +74,38 @@ export default function HomePage() {
       </header>
 
       <main className="mx-auto w-full max-w-lg flex-1 overflow-y-auto px-4 pb-24 pt-4">
-        {tab === "home" && (
-          <HomeScreen
-            profile={profile}
-            latest={latest}
-            recentPosts={posts}
-            subscription={subscription}
-            onNavigate={setTab}
-          />
-        )}
-        {tab === "calculator" && (
-          <TdeeCalculator
-            profile={profile}
-            history={history}
-            onProfileSaved={setProfile}
-            onHistoryAdded={(entry) =>
-              setHistory((prev) => [...prev.filter((h) => h.date !== entry.date), entry])
-            }
-          />
-        )}
-        {tab === "scan" && <ScanScreen subscription={subscription} onSetPremium={handleSetPremium} />}
-        {tab === "chat" && <ChatScreen profile={profile} />}
-        {tab === "forum" && <ForumScreen />}
-        {tab === "profile" && (
-          <ProfileScreen
-            profile={profile}
-            onProfileSaved={setProfile}
-            subscription={subscription}
-            onSetPremium={handleSetPremium}
-          />
-        )}
+        <div key={tab} className="animate-tab-in">
+          {tab === "home" && (
+            <HomeScreen
+              profile={profile}
+              latest={latest}
+              recentPosts={posts}
+              subscription={subscription}
+              onNavigate={setTab}
+            />
+          )}
+          {tab === "calculator" && (
+            <TdeeCalculator
+              profile={profile}
+              history={history}
+              onProfileSaved={setProfile}
+              onHistoryAdded={(entry) =>
+                setHistory((prev) => [...prev.filter((h) => h.date !== entry.date), entry])
+              }
+            />
+          )}
+          {tab === "scan" && <ScanScreen subscription={subscription} onSetPremium={handleSetPremium} />}
+          {tab === "chat" && <ChatScreen profile={profile} />}
+          {tab === "forum" && <ForumScreen />}
+          {tab === "profile" && (
+            <ProfileScreen
+              profile={profile}
+              onProfileSaved={setProfile}
+              subscription={subscription}
+              onSetPremium={handleSetPremium}
+            />
+          )}
+        </div>
       </main>
 
       <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/90 backdrop-blur-lg safe-bottom">

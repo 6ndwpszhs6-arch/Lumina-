@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { db } from "@/lib/db";
 import { computeLoggingStreak } from "@/lib/nutrition";
+import { useCountUp } from "@/lib/useCountUp";
 import type { ForumPost, Subscription, TdeeLogEntry, UserProfile } from "@/lib/types";
 import { FORUM_CATEGORIES } from "@/lib/types";
 import { Calculator, Crown, Flame, MessageCircle, Newspaper, ScanBarcode } from "lucide-react";
@@ -34,6 +35,8 @@ export default function HomeScreen({ profile, latest, recentPosts, subscription,
   const remaining = latest ? Math.max(latest.targetCalories - consumedToday, 0) : 0;
   const isOver = latest ? consumedToday > latest.targetCalories : false;
   const percent = latest ? Math.min(consumedToday / latest.targetCalories, 1) * 100 : 0;
+  const heroNumber = consumedToday > 0 ? remaining : (latest?.targetCalories ?? 0);
+  const animatedHero = useCountUp(heroNumber);
 
   return (
     <div className="space-y-8">
@@ -51,9 +54,7 @@ export default function HomeScreen({ profile, latest, recentPosts, subscription,
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
               {consumedToday > 0 ? (isOver ? "Over today's target" : "Calories remaining") : "Today's target"}
             </p>
-            <p className="mt-2 font-serif text-4xl font-semibold tracking-tight text-primary">
-              {consumedToday > 0 ? remaining : latest!.targetCalories}
-            </p>
+            <p className="mt-2 font-serif text-4xl font-semibold tracking-tight text-primary">{animatedHero}</p>
             {consumedToday > 0 ? (
               <>
                 <div className="mx-auto mt-3 h-1.5 w-full max-w-[220px] overflow-hidden rounded-full bg-secondary">
