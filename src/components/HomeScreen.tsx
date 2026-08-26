@@ -1,8 +1,11 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { db } from "@/lib/db";
+import { computeLoggingStreak } from "@/lib/nutrition";
 import type { ForumPost, Subscription, TdeeLogEntry, UserProfile } from "@/lib/types";
 import { FORUM_CATEGORIES } from "@/lib/types";
-import { Calculator, Crown, MessageCircle, Newspaper, ScanBarcode } from "lucide-react";
+import { Calculator, Crown, Flame, MessageCircle, Newspaper, ScanBarcode } from "lucide-react";
 
 interface Props {
   profile: UserProfile | undefined;
@@ -13,6 +16,25 @@ interface Props {
 }
 
 export default function HomeScreen({ profile, latest, recentPosts, subscription, onNavigate }: Props) {
+  const [consumedToday, setConsumedToday] = useState(0);
+  const [streak, setStreak] = useState(0);
+
+  useEffect(() => {
+    db.foodLog.toArray().then((rows) => {
+      const today = new Date().toISOString().slice(0, 10);
+      const todayTotal = rows
+        .filter((r) => r.date === today)
+        .reduce((sum, r) => sum + (r.nutrients.calories ?? 0), 0);
+      setConsumedToday(Math.round(todayTotal));
+      setStreak(computeLoggingStreak(rows.map((r) => r.date)));
+    });
+  }, []);
+
+  const hasTarget = Boolean(latest);
+  const remaining = latest ? Math.max(latest.targetCalories - consumedToday, 0) : 0;
+  const isOver = latest ? consumedToday > latest.targetCalories : false;
+  const percent = latest ? Math.min(consumedToday / latest.targetCalories, 1) * 100 : 0;
+
   return (
     <div className="space-y-8">
       <section>
@@ -24,15 +46,32 @@ export default function HomeScreen({ profile, latest, recentPosts, subscription,
       </section>
 
       <section className="rounded-2xl border border-border bg-card p-6 text-center">
-        {latest ? (
+        {hasTarget ? (
           <>
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Today&apos;s target</p>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              {consumedToday > 0 ? (isOver ? "Over today's target" : "Calories remaining") : "Today's target"}
+            </p>
             <p className="mt-2 font-serif text-4xl font-semibold tracking-tight text-primary">
-              {latest.targetCalories}
+              {consumedToday > 0 ? remaining : latest!.targetCalories}
             </p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              calories &middot; {latest.proteinG}g protein &middot; {latest.fatG}g fat &middot; {latest.carbsG}g carbs
-            </p>
+            {consumedToday > 0 ? (
+              <>
+                <div className="mx-auto mt-3 h-1.5 w-full max-w-[220px] overflow-hidden rounded-full bg-secondary">
+                  <div
+                    className="h-full rounded-full bg-primary transition-all"
+                    style={{ width: `${percent}%` }}
+                  />
+                </div>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {consumedToday} of {latest!.targetCalories} kcal logged today
+                </p>
+              </>
+            ) : (
+              <p className="mt-1 text-sm text-muted-foreground">
+                calories &middot; {latest!.proteinG}g protein &middot; {latest!.fatG}g fat &middot; {latest!.carbsG}g
+                carbs
+              </p>
+            )}
             <button onClick={() => onNavigate("calculator")} className="mt-4 text-sm font-medium text-primary">
               Recalculate →
             </button>
@@ -52,6 +91,13 @@ export default function HomeScreen({ profile, latest, recentPosts, subscription,
           </>
         )}
       </section>
+
+      {streak > 0 && (
+        <p className="flex items-center justify-center gap-1.5 text-sm text-muted-foreground">
+          <Flame className="h-4 w-4 text-primary" />
+          {streak}-day logging streak
+        </p>
+      )}
 
       <section className="flex items-center justify-center gap-6 text-sm text-muted-foreground">
         <button onClick={() => onNavigate("chat")} className="flex items-center gap-1.5 transition hover:text-foreground">

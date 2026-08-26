@@ -19,3 +19,20 @@ export function scaleNutrientProfile(profile: NutrientProfile, factor: number): 
   });
   return scaled;
 }
+
+// Consecutive days logged, counting back from today. If nothing's been
+// logged yet today, counts back from yesterday instead so the streak
+// doesn't drop to zero the moment a new day starts.
+export function computeLoggingStreak(loggedDates: string[]): number {
+  const dates = new Set(loggedDates);
+  const cursor = new Date();
+  if (!dates.has(cursor.toISOString().slice(0, 10))) {
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  let streak = 0;
+  while (dates.has(cursor.toISOString().slice(0, 10))) {
+    streak++;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return streak;
+}
