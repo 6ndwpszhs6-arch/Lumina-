@@ -16,7 +16,7 @@ import ForumScreen from "@/components/ForumScreen";
 import ScanScreen from "@/components/ScanScreen";
 import ProfileScreen from "@/components/ProfileScreen";
 import Logo from "@/components/Logo";
-import { Calculator, Crown, Home, MessageCircle, Newspaper, ScanBarcode, User } from "lucide-react";
+import { Calculator, Crown, Home, LogIn, MessageCircle, Newspaper, ScanBarcode, User } from "lucide-react";
 
 type Tab = "home" | "calculator" | "scan" | "chat" | "forum" | "profile";
 
@@ -119,11 +119,21 @@ export default function HomePage() {
           </div>
           <h1 className="text-base font-semibold tracking-tight">Metabo</h1>
           <span className="text-xs text-muted-foreground">Diet &amp; Metabolism</span>
-          {subscription.tier === "premium" && (
-            <span className="ml-auto flex items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-xs font-medium text-primary">
-              <Crown className="h-3 w-3" /> Premium
-            </span>
-          )}
+          <div className="ml-auto flex items-center gap-2">
+            {subscription.tier === "premium" && (
+              <span className="flex items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-xs font-medium text-primary">
+                <Crown className="h-3 w-3" /> Premium
+              </span>
+            )}
+            {!user && (
+              <button
+                onClick={() => setTab("profile")}
+                className="flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition active:scale-[0.97]"
+              >
+                <LogIn className="h-3.5 w-3.5" /> Sign in
+              </button>
+            )}
+          </div>
         </div>
       </header>
 
