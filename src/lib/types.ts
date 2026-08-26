@@ -98,6 +98,7 @@ export interface ForumPost {
   category: ForumCategory;
   sourceName: string;
   sourceUrl: string;
+  imageUrl?: string;
   published: boolean;
   publishedAt: string; // ISO
   createdAt: string;

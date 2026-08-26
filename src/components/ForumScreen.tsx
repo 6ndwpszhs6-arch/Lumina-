@@ -36,6 +36,14 @@ export default function ForumScreen() {
         <button onClick={() => setSelected(null)} className="text-sm text-primary">
           ← Back to news
         </button>
+        {selected.imageUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={selected.imageUrl}
+            alt=""
+            className="-mt-1 aspect-video w-full rounded-2xl border border-border object-cover"
+          />
+        )}
         <div>
           <p className="text-xs uppercase tracking-wide text-muted-foreground">
             {FORUM_CATEGORIES.find((c) => c.value === selected.category)?.label}
@@ -102,17 +110,28 @@ export default function ForumScreen() {
             <button
               key={post.id}
               onClick={() => setSelected(post)}
-              className="block w-full rounded-2xl border border-border bg-card p-4 text-left transition active:scale-[0.99]"
+              className="flex w-full items-start gap-3 rounded-2xl border border-border bg-card p-4 text-left transition active:scale-[0.99]"
             >
-              <p className="text-xs uppercase tracking-wide text-primary">
-                {FORUM_CATEGORIES.find((c) => c.value === post.category)?.label}
-              </p>
-              <p className="mt-1 font-medium leading-snug">{post.title}</p>
-              <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{post.summary}</p>
-              <p className="mt-2 text-xs text-muted-foreground">
-                {new Date(post.publishedAt).toLocaleDateString(undefined, { dateStyle: "medium" })} ·{" "}
-                {post.sourceName}
-              </p>
+              {post.imageUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={post.imageUrl}
+                  alt=""
+                  loading="lazy"
+                  className="h-14 w-14 shrink-0 rounded-xl object-cover"
+                />
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="text-xs uppercase tracking-wide text-primary">
+                  {FORUM_CATEGORIES.find((c) => c.value === post.category)?.label}
+                </p>
+                <p className="mt-1 font-medium leading-snug">{post.title}</p>
+                <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{post.summary}</p>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {new Date(post.publishedAt).toLocaleDateString(undefined, { dateStyle: "medium" })} ·{" "}
+                  {post.sourceName}
+                </p>
+              </div>
             </button>
           ))}
           {!loading && filtered.length === 0 && posts.length > 0 && (

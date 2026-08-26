@@ -5,7 +5,7 @@ import { Capacitor } from "@capacitor/core";
 import type { IScannerControls } from "@zxing/browser";
 import { db, generateId } from "@/lib/db";
 import { lookupBarcode, scaleNutrientProfile, searchFoodsByName } from "@/lib/nutrition";
-import { GREEK_DISHES, greekDishToScannedFood } from "@/lib/greekFoods";
+import { GREEK_DISHES, commonsImageUrl, greekDishToScannedFood } from "@/lib/greekFoods";
 import { NUTRIENT_FIELDS } from "@/lib/types";
 import type { FoodLogEntry, NutrientBasis, NutrientProfile, ScannedFood, Subscription } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -302,9 +302,16 @@ export default function ScanScreen({ subscription, onSubscriptionChange }: Props
               <button
                 key={dish.slug}
                 onClick={() => selectGreekDish(dish)}
-                className="flex w-full items-center justify-between gap-2 rounded-xl border border-border bg-card px-3 py-2 text-left text-sm transition active:scale-[0.99]"
+                className="flex w-full items-center gap-2.5 rounded-xl border border-border bg-card px-3 py-2 text-left text-sm transition active:scale-[0.99]"
               >
-                <span className="min-w-0 truncate font-medium">{dish.name}</span>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={commonsImageUrl(dish.imageFile, 80)}
+                  alt=""
+                  loading="lazy"
+                  className="h-9 w-9 shrink-0 rounded-lg object-cover"
+                />
+                <span className="min-w-0 flex-1 truncate font-medium">{dish.name}</span>
                 <span className="shrink-0 text-xs text-muted-foreground">Greek dish</span>
               </button>
             ))}
@@ -427,7 +434,7 @@ export default function ScanScreen({ subscription, onSubscriptionChange }: Props
 
           <p className="text-xs text-muted-foreground">
             {result.barcode.startsWith("greek:")
-              ? "Typical values for this dish — real nutrition varies with recipe and portion, so treat this as an estimate."
+              ? "Typical values for this dish — real nutrition varies with recipe and portion, so treat this as an estimate. Photo via Wikimedia Commons."
               : "Nutrition data from Open Food Facts, a community-maintained database."}{" "}
             Always check the actual package label when precision matters (e.g. for insulin dosing or PKU Phe
             tracking).

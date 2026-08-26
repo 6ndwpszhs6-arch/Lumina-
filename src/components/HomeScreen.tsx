@@ -141,12 +141,23 @@ export default function HomeScreen({ profile, latest, recentPosts, subscription,
               <button
                 key={post.id}
                 onClick={() => onNavigate("forum")}
-                className="block w-full rounded-xl border border-border bg-card p-3 text-left"
+                className="flex w-full items-center gap-3 rounded-xl border border-border bg-card p-3 text-left"
               >
-                <p className="text-xs uppercase tracking-wide text-primary">
-                  {FORUM_CATEGORIES.find((c) => c.value === post.category)?.label}
-                </p>
-                <p className="mt-1 line-clamp-2 text-sm font-medium">{post.title}</p>
+                {post.imageUrl && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={post.imageUrl}
+                    alt=""
+                    loading="lazy"
+                    className="h-10 w-10 shrink-0 rounded-lg object-cover"
+                  />
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs uppercase tracking-wide text-primary">
+                    {FORUM_CATEGORIES.find((c) => c.value === post.category)?.label}
+                  </p>
+                  <p className="mt-1 line-clamp-2 text-sm font-medium">{post.title}</p>
+                </div>
               </button>
             ))}
           </div>

@@ -58,6 +58,7 @@ export async function POST(req: Request) {
     category: body.category,
     source_name: body.sourceName,
     source_url: body.sourceUrl,
+    image_url: body.imageUrl || null,
     published: body.published ?? false,
     published_at: body.published ? now : null,
     created_at: now,

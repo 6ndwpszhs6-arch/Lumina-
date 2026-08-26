@@ -10,6 +10,7 @@ interface ForumPostRow {
   category: string;
   source_name: string;
   source_url: string;
+  image_url: string | null;
   published: boolean;
   published_at: string | null;
   created_at: string;
@@ -25,6 +26,7 @@ export function mapRowToPost(row: ForumPostRow): ForumPost {
     category: row.category as ForumPost["category"],
     sourceName: row.source_name,
     sourceUrl: row.source_url,
+    imageUrl: row.image_url ?? undefined,
     published: row.published,
     publishedAt: row.published_at ?? row.created_at,
     createdAt: row.created_at,

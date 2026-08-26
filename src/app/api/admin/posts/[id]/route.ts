@@ -29,6 +29,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (body.category !== undefined) update.category = body.category;
   if (body.sourceName !== undefined) update.source_name = body.sourceName;
   if (body.sourceUrl !== undefined) update.source_url = body.sourceUrl;
+  if (body.imageUrl !== undefined) update.image_url = body.imageUrl || null;
   if (body.published !== undefined) {
     update.published = body.published;
     if (body.published && !body.publishedAt) update.published_at = now;

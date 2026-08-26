@@ -14,6 +14,7 @@ interface DraftPost {
   category: ForumCategory;
   sourceName: string;
   sourceUrl: string;
+  imageUrl: string;
   published: boolean;
 }
 
@@ -24,6 +25,7 @@ const emptyDraft: DraftPost = {
   category: "general_news",
   sourceName: "",
   sourceUrl: "",
+  imageUrl: "",
   published: false,
 };
 
@@ -75,6 +77,7 @@ export default function AdminPage() {
       category: post.category,
       sourceName: post.sourceName,
       sourceUrl: post.sourceUrl,
+      imageUrl: post.imageUrl ?? "",
       published: post.published,
     });
   }
@@ -202,6 +205,12 @@ export default function AdminPage() {
           value={draft.sourceUrl}
           onChange={(e) => setDraft({ ...draft, sourceUrl: e.target.value })}
           placeholder="Source URL (must be a medically approved source)"
+          className="w-full rounded-xl border border-border bg-background px-3 py-2 outline-none focus:ring-2 focus:ring-ring"
+        />
+        <input
+          value={draft.imageUrl}
+          onChange={(e) => setDraft({ ...draft, imageUrl: e.target.value })}
+          placeholder="Image URL (optional — e.g. the source article's header image)"
           className="w-full rounded-xl border border-border bg-background px-3 py-2 outline-none focus:ring-2 focus:ring-ring"
         />
         <div className="flex gap-2">

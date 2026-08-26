@@ -9,11 +9,15 @@ create table if not exists forum_posts (
   category text not null check (category in ('diabetes', 'pku', 'metabolism', 'nutrition_research', 'general_news')),
   source_name text not null,
   source_url text not null,
+  image_url text,
   published boolean not null default false,
   published_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- Safe to re-run on a table created before image_url existed.
+alter table forum_posts add column if not exists image_url text;
 
 create index if not exists forum_posts_published_at_idx on forum_posts (published_at desc);
 
