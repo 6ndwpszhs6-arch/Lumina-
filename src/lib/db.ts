@@ -46,6 +46,10 @@ export async function ensureSettings(): Promise<AppSettings> {
   return defaults;
 }
 
+export async function setOnboarded(): Promise<void> {
+  await db.settings.put({ id: "settings", onboarded: true });
+}
+
 export async function getProfile(): Promise<UserProfile | undefined> {
   return db.profile.get("profile");
 }

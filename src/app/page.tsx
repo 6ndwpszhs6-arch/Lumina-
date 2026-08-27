@@ -2,9 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { User as AuthUser } from "@supabase/supabase-js";
-import { db, ensureSettings, getProfile } from "@/lib/db";
+import { db, ensureSettings, getProfile, setOnboarded } from "@/lib/db";
 import { onAuthChange } from "@/lib/auth";
-import { setCurrentUserId, syncAfterLogin } from "@/lib/sync";
+import { setCurrentUserId, saveProfileSynced, syncAfterLogin } from "@/lib/sync";
 import { fetchForumPosts } from "@/lib/forum";
 import { confirmFromCheckoutSession, getSubscription, syncSubscription } from "@/lib/subscription";
 import type { ForumPost, Subscription, TdeeLogEntry, UserProfile } from "@/lib/types";
@@ -29,21 +29,29 @@ export default function HomePage() {
   const [posts, setPosts] = useState<ForumPost[]>([]);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [onboarded, setOnboardedState] = useState(false);
   const [showSignIn, setShowSignIn] = useState(false);
   const lastSyncedUserId = useRef<string | null>(null);
 
   useEffect(() => {
     async function init() {
-      await ensureSettings();
+      const settings = await ensureSettings();
       const [p, h, sub] = await Promise.all([getProfile(), db.tdeeHistory.toArray(), getSubscription()]);
       setProfile(p);
       setHistory(h);
       setSubscription(sub);
+      setOnboardedState(settings.onboarded);
       setReady(true);
       fetchForumPosts().then((res) => setPosts(res.posts));
     }
     init();
   }, []);
+
+  function dismissSignIn() {
+    setOnboarded();
+    setOnboardedState(true);
+    setShowSignIn(false);
+  }
 
   const latest = history.slice().sort((a, b) => b.date.localeCompare(a.date))[0];
 
@@ -87,7 +95,15 @@ export default function HomePage() {
       lastSyncedUserId.current = nextUser.id;
 
       await syncAfterLogin(nextUser.id);
-      const [p, h] = await Promise.all([getProfile(), db.tdeeHistory.toArray()]);
+      setOnboarded();
+      setOnboardedState(true);
+
+      const [profileResult, h] = await Promise.all([getProfile(), db.tdeeHistory.toArray()]);
+      let p = profileResult;
+      const googleName = nextUser.user_metadata?.full_name || nextUser.user_metadata?.name;
+      if (!p?.name && typeof googleName === "string" && googleName) {
+        p = await saveProfileSynced({ name: googleName });
+      }
       setProfile(p);
       setHistory(h);
 
@@ -113,8 +129,8 @@ export default function HomePage() {
     );
   }
 
-  if (showSignIn) {
-    return <SignInScreen onClose={() => setShowSignIn(false)} />;
+  if (showSignIn || !onboarded) {
+    return <SignInScreen onClose={dismissSignIn} />;
   }
 
   return (
