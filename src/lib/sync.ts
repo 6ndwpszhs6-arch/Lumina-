@@ -130,6 +130,7 @@ interface FoodLogRow {
   servings: number;
   nutrients: NutrientProfile;
   created_at: string;
+  deleted_at: string | null;
 }
 
 function foodLogRowToLocal(row: FoodLogRow): FoodLogEntry {
@@ -158,6 +159,7 @@ function foodLogToRow(userId: string, e: FoodLogEntry): FoodLogRow & { user_id: 
     servings: e.servings,
     nutrients: e.nutrients,
     created_at: e.createdAt,
+    deleted_at: null,
   };
 }
 
@@ -218,6 +220,34 @@ async function mergeCollection<Local extends { id: string }, Row>(
   }
 }
 
+// Same shape as mergeCollection, but food_log rows are soft-deleted
+// (deleted_at set instead of the row being removed) so a deletion made on
+// one device — or before this device ever saw the row — propagates instead
+// of the entry quietly reappearing on the next sync.
+async function mergeFoodLog(userId: string): Promise<void> {
+  if (!supabase) return;
+  const [localItems, remoteRes] = await Promise.all([
+    db.foodLog.toArray(),
+    supabase.from("food_log").select("*").eq("user_id", userId),
+  ]);
+  const remoteRows = (remoteRes.data ?? []) as FoodLogRow[];
+  const remoteById = new Map(remoteRows.map((r) => [r.id, r]));
+  const localIds = new Set(localItems.map((l) => l.id));
+
+  const toPullDown = remoteRows.filter((r) => !r.deleted_at && !localIds.has(r.id)).map(foodLogRowToLocal);
+  const toDeleteLocally = localItems
+    .filter((l) => remoteById.get(l.id)?.deleted_at)
+    .map((l) => l.id);
+  const toPushUp = localItems.filter((l) => !remoteById.has(l.id));
+
+  if (toPullDown.length) await db.foodLog.bulkPut(toPullDown);
+  if (toDeleteLocally.length) await db.foodLog.bulkDelete(toDeleteLocally);
+  if (toPushUp.length) {
+    const rows = toPushUp.map((item) => foodLogToRow(userId, item));
+    await supabase.from("food_log").upsert(rows);
+  }
+}
+
 // Runs once right after a successful sign-in. Merges local (on-device) data
 // with whatever's already synced to the account: newest profile wins,
 // history/log/chat entries are unioned by id in both directions so nothing
@@ -239,7 +269,7 @@ export async function syncAfterLogin(userId: string): Promise<void> {
 
   await Promise.all([
     mergeCollection(userId, "tdee_history", db.tdeeHistory, tdeeRowToLocal, tdeeToRow),
-    mergeCollection(userId, "food_log", db.foodLog, foodLogRowToLocal, foodLogToRow),
+    mergeFoodLog(userId),
     mergeCollection(userId, "chat_messages", db.chatMessages, chatRowToLocal, chatToRow),
   ]);
 }
@@ -271,7 +301,14 @@ export async function addFoodLogEntrySynced(entry: FoodLogEntry): Promise<void> 
 export async function removeFoodLogEntrySynced(id: string): Promise<void> {
   await db.foodLog.delete(id);
   if (supabase && currentUserId) {
-    await supabase.from("food_log").delete().eq("id", id).eq("user_id", currentUserId);
+    // Soft-delete remotely (tombstone) instead of removing the row outright,
+    // so the deletion propagates on the next sync instead of the union merge
+    // pulling the "still there" remote copy back down onto another device.
+    await supabase
+      .from("food_log")
+      .update({ deleted_at: new Date().toISOString() })
+      .eq("id", id)
+      .eq("user_id", currentUserId);
   }
 }
 

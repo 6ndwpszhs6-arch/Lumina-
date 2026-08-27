@@ -116,12 +116,19 @@ create table if not exists food_log (
   basis text not null,
   servings numeric not null,
   nutrients jsonb not null,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  deleted_at timestamptz
 );
 create index if not exists food_log_user_id_idx on food_log (user_id);
 alter table food_log enable row level security;
 create policy "users manage their own food log" on food_log for all
   using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- Safe to re-run on a table created before deleted_at existed. Entries are
+-- soft-deleted (tombstoned) here instead of hard-deleted so a deletion made
+-- on one device propagates to every other synced device instead of the
+-- union merge quietly resurrecting the row.
+alter table food_log add column if not exists deleted_at timestamptz;
 
 create table if not exists chat_messages (
   id uuid primary key,
