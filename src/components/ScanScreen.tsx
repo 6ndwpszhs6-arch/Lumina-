@@ -377,11 +377,11 @@ export default function ScanScreen({ subscription, onSubscriptionChange }: Props
 
       {cameraSupported && (
         <button
-          onClick={!isNative && scanning ? stopCamera : startCamera}
+          onClick={startCamera}
           className="flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-card py-2.5 text-sm font-medium"
         >
-          {!isNative && scanning ? <X className="h-4 w-4" /> : <Camera className="h-4 w-4" />}
-          {!isNative && scanning ? "Stop scanning" : "Scan with camera"}
+          <Camera className="h-4 w-4" />
+          Scan with camera
         </button>
       )}
       {!cameraSupported && (
@@ -392,13 +392,37 @@ export default function ScanScreen({ subscription, onSubscriptionChange }: Props
       )}
 
       {!isNative && (
-        <div
-          className={cn(
-            "overflow-hidden rounded-xl border border-border bg-black",
-            !scanning && "hidden"
-          )}
-        >
-          <video ref={videoRef} className="aspect-video w-full object-cover" muted playsInline />
+        <div className={cn("fixed inset-0 z-[60] flex flex-col bg-black", !scanning && "hidden")}>
+          <video ref={videoRef} className="absolute inset-0 h-full w-full object-cover" muted playsInline />
+
+          <div className="relative z-10 flex items-center justify-between px-4 pt-4 safe-top">
+            <button
+              onClick={stopCamera}
+              aria-label="Close scanner"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm transition active:scale-95"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <p className="text-sm font-medium text-white">Scan a barcode or QR code</p>
+            <div className="h-10 w-10" />
+          </div>
+
+          <div className="relative flex flex-1 items-center justify-center">
+            <div
+              className="relative h-48 w-72 max-w-[80vw] overflow-hidden rounded-2xl"
+              style={{ boxShadow: "0 0 0 9999px rgba(0,0,0,0.55)" }}
+            >
+              <ScannerCorner className="left-0 top-0 rounded-tl-2xl border-l-[3px] border-t-[3px]" />
+              <ScannerCorner className="right-0 top-0 rounded-tr-2xl border-r-[3px] border-t-[3px]" />
+              <ScannerCorner className="bottom-0 left-0 rounded-bl-2xl border-b-[3px] border-l-[3px]" />
+              <ScannerCorner className="bottom-0 right-0 rounded-br-2xl border-b-[3px] border-r-[3px]" />
+              <div className="animate-scan-line absolute inset-x-0 h-0.5 bg-primary shadow-[0_0_8px_2px_var(--color-primary)]" />
+            </div>
+          </div>
+
+          <p className="relative z-10 pb-10 text-center text-sm text-white/80 safe-bottom">
+            Position the barcode within the frame
+          </p>
         </div>
       )}
 
@@ -502,6 +526,10 @@ export default function ScanScreen({ subscription, onSubscriptionChange }: Props
       )}
     </div>
   );
+}
+
+function ScannerCorner({ className }: { className: string }) {
+  return <div className={cn("pointer-events-none absolute h-7 w-7 border-white", className)} />;
 }
 
 function NutrientTable({ profile }: { profile: NutrientProfile }) {

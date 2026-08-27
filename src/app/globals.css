@@ -163,10 +163,25 @@ h3 {
   }
 }
 
+/* Camera scanner: a scan line sweeping the frame top to bottom */
+.animate-scan-line {
+  animation: scan-line 2s ease-in-out infinite;
+}
+@keyframes scan-line {
+  0%,
+  100% {
+    top: 0%;
+  }
+  50% {
+    top: calc(100% - 2px);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .logo-ring,
   .animate-tab-in,
-  .animate-construction-bar {
+  .animate-construction-bar,
+  .animate-scan-line {
     animation: none;
   }
 }
