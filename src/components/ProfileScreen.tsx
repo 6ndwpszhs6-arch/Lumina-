@@ -18,9 +18,17 @@ interface Props {
   subscription: Subscription;
   onSubscriptionChange: (subscription: Subscription) => void;
   user: AuthUser | null;
+  onOpenSignIn: () => void;
 }
 
-export default function ProfileScreen({ profile, onProfileSaved, subscription, onSubscriptionChange, user }: Props) {
+export default function ProfileScreen({
+  profile,
+  onProfileSaved,
+  subscription,
+  onSubscriptionChange,
+  user,
+  onOpenSignIn,
+}: Props) {
   const [name, setName] = useState(profile?.name ?? "");
   const [conditions, setConditions] = useState<MetabolicCondition[]>(profile?.conditions ?? []);
   const [otherNote, setOtherNote] = useState(profile?.otherConditionNote ?? "");
@@ -113,7 +121,7 @@ export default function ProfileScreen({ profile, onProfileSaved, subscription, o
         </p>
       </div>
 
-      <AccountCard user={user} />
+      <AccountCard user={user} onOpenSignIn={onOpenSignIn} />
 
       <label className="block space-y-1.5">
         <span className="text-sm font-medium text-muted-foreground">Name (optional)</span>

@@ -15,6 +15,7 @@ import UnderConstruction from "@/components/UnderConstruction";
 import ForumScreen from "@/components/ForumScreen";
 import ScanScreen from "@/components/ScanScreen";
 import ProfileScreen from "@/components/ProfileScreen";
+import SignInScreen from "@/components/SignInScreen";
 import Logo from "@/components/Logo";
 import { Calculator, Crown, Home, LogIn, MessageCircle, Newspaper, ScanBarcode, User } from "lucide-react";
 
@@ -28,6 +29,7 @@ export default function HomePage() {
   const [posts, setPosts] = useState<ForumPost[]>([]);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [showSignIn, setShowSignIn] = useState(false);
   const lastSyncedUserId = useRef<string | null>(null);
 
   useEffect(() => {
@@ -75,6 +77,7 @@ export default function HomePage() {
     const unsubscribe = onAuthChange(async (nextUser) => {
       setCurrentUserId(nextUser?.id ?? null);
       setUser(nextUser);
+      if (nextUser) setShowSignIn(false);
 
       if (!nextUser) {
         lastSyncedUserId.current = null;
@@ -110,6 +113,10 @@ export default function HomePage() {
     );
   }
 
+  if (showSignIn) {
+    return <SignInScreen onClose={() => setShowSignIn(false)} />;
+  }
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-md safe-top">
@@ -127,7 +134,7 @@ export default function HomePage() {
             )}
             {!user && (
               <button
-                onClick={() => setTab("profile")}
+                onClick={() => setShowSignIn(true)}
                 className="flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition active:scale-[0.97]"
               >
                 <LogIn className="h-3.5 w-3.5" /> Sign in
@@ -173,6 +180,7 @@ export default function HomePage() {
               subscription={subscription}
               onSubscriptionChange={setSubscription}
               user={user}
+              onOpenSignIn={() => setShowSignIn(true)}
             />
           )}
         </div>

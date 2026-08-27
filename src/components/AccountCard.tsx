@@ -1,40 +1,15 @@
 "use client";
 
-import { useState } from "react";
 import type { User } from "@supabase/supabase-js";
-import { signInWithGoogle, signInWithMagicLink, signOut } from "@/lib/auth";
-import { Loader2, LogOut, Mail } from "lucide-react";
+import { signOut } from "@/lib/auth";
+import { LogIn, LogOut } from "lucide-react";
 
 interface Props {
   user: User | null;
+  onOpenSignIn: () => void;
 }
 
-export default function AccountCard({ user }: Props) {
-  const [email, setEmail] = useState("");
-  const [sending, setSending] = useState(false);
-  const [sent, setSent] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function handleMagicLink() {
-    const trimmed = email.trim();
-    if (!trimmed) return;
-    setError(null);
-    setSending(true);
-    const { error: err } = await signInWithMagicLink(trimmed);
-    setSending(false);
-    if (err) {
-      setError(err);
-      return;
-    }
-    setSent(true);
-  }
-
-  async function handleGoogle() {
-    setError(null);
-    const { error: err } = await signInWithGoogle();
-    if (err) setError(err);
-  }
-
+export default function AccountCard({ user, onOpenSignIn }: Props) {
   if (user) {
     return (
       <div className="rounded-xl border border-border bg-card p-4">
@@ -57,37 +32,12 @@ export default function AccountCard({ user }: Props) {
         Sign in to back up your profile, calorie history, and food log, and pick up where you left off on any
         device. Optional — everything still works locally without an account.
       </p>
-
-      <button onClick={handleGoogle} className="mt-3 w-full rounded-lg border border-border py-2 text-sm font-medium">
-        Continue with Google
+      <button
+        onClick={onOpenSignIn}
+        className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-primary py-2.5 text-sm font-medium text-primary-foreground transition active:scale-[0.99]"
+      >
+        <LogIn className="h-3.5 w-3.5" /> Sign in
       </button>
-
-      {sent ? (
-        <p className="mt-3 text-xs text-muted-foreground">
-          Check <span className="font-medium text-foreground">{email}</span> for a sign-in link.
-        </p>
-      ) : (
-        <div className="mt-3 flex gap-2">
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleMagicLink()}
-            placeholder="you@example.com"
-            className="flex-1 rounded-lg border border-border bg-secondary px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-          />
-          <button
-            onClick={handleMagicLink}
-            disabled={sending || !email.trim()}
-            className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
-          >
-            {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mail className="h-3.5 w-3.5" />}
-            Send link
-          </button>
-        </div>
-      )}
-
-      {error && <p className="mt-2 text-xs text-danger">{error}</p>}
     </div>
   );
 }
