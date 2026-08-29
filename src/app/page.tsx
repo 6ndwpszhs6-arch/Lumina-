@@ -16,6 +16,7 @@ import ForumScreen from "@/components/ForumScreen";
 import ScanScreen from "@/components/ScanScreen";
 import ProfileScreen from "@/components/ProfileScreen";
 import SignInScreen from "@/components/SignInScreen";
+import AddToHomeScreenScreen from "@/components/AddToHomeScreenScreen";
 import Logo from "@/components/Logo";
 import { Calculator, Crown, Home, LogIn, MessageCircle, Newspaper, ScanBarcode, User } from "lucide-react";
 
@@ -31,6 +32,13 @@ export default function HomePage() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [onboarded, setOnboardedState] = useState(false);
   const [showSignIn, setShowSignIn] = useState(false);
+  const [isStandalone] = useState(() => {
+    if (typeof window === "undefined") return true;
+    const nav = window.navigator as Navigator & { standalone?: boolean };
+    return window.matchMedia("(display-mode: standalone)").matches || nav.standalone === true;
+  });
+  // Not persisted, so it prompts again on every visit until installed.
+  const [dismissedA2hs, setDismissedA2hs] = useState(false);
   const lastSyncedUserId = useRef<string | null>(null);
 
   useEffect(() => {
@@ -127,6 +135,10 @@ export default function HomePage() {
         </div>
       </div>
     );
+  }
+
+  if (!isStandalone && !dismissedA2hs) {
+    return <AddToHomeScreenScreen onContinue={() => setDismissedA2hs(true)} />;
   }
 
   if (showSignIn || !onboarded) {
