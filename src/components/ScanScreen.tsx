@@ -519,8 +519,11 @@ export default function ScanScreen({ subscription, onSubscriptionChange }: Props
             ))}
           </div>
           <div className="rounded-2xl border border-border bg-card p-4">
-            <p className="mb-2 text-xs uppercase tracking-wide text-primary">Today&apos;s totals</p>
-            <NutrientTable profile={totals} />
+            <p className="mb-3 text-xs uppercase tracking-wide text-primary">Today&apos;s totals</p>
+            <MacroRing totals={totals} />
+            <div className="mt-4 border-t border-border pt-4">
+              <NutrientTable profile={totals} />
+            </div>
           </div>
         </div>
       )}
@@ -530,6 +533,83 @@ export default function ScanScreen({ subscription, onSubscriptionChange }: Props
 
 function ScannerCorner({ className }: { className: string }) {
   return <div className={cn("pointer-events-none absolute h-7 w-7 border-white", className)} />;
+}
+
+const MACRO_RING_RADIUS = 42;
+const MACRO_RING_CIRCUMFERENCE = 2 * Math.PI * MACRO_RING_RADIUS;
+
+function MacroRing({ totals }: { totals: NutrientProfile }) {
+  const proteinG = totals.proteinG ?? 0;
+  const fatG = totals.fatG ?? 0;
+  const carbsG = totals.carbsG ?? 0;
+  const grams = proteinG + fatG + carbsG || 1;
+  const proteinLen = (proteinG / grams) * MACRO_RING_CIRCUMFERENCE;
+  const fatLen = (fatG / grams) * MACRO_RING_CIRCUMFERENCE;
+  const carbLen = (carbsG / grams) * MACRO_RING_CIRCUMFERENCE;
+
+  return (
+    <div className="flex items-center gap-4">
+      <div className="relative h-28 w-28 shrink-0">
+        <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90">
+          <circle cx="50" cy="50" r={MACRO_RING_RADIUS} fill="none" stroke="var(--border)" strokeWidth="9" />
+          <circle
+            cx="50"
+            cy="50"
+            r={MACRO_RING_RADIUS}
+            fill="none"
+            stroke="var(--primary)"
+            strokeWidth="9"
+            strokeLinecap="round"
+            strokeDasharray={`${proteinLen} 999`}
+            className="transition-all duration-500"
+          />
+          <circle
+            cx="50"
+            cy="50"
+            r={MACRO_RING_RADIUS}
+            fill="none"
+            stroke="var(--warning)"
+            strokeWidth="9"
+            strokeLinecap="round"
+            strokeDasharray={`${fatLen} 999`}
+            strokeDashoffset={-proteinLen}
+            className="transition-all duration-500"
+          />
+          <circle
+            cx="50"
+            cy="50"
+            r={MACRO_RING_RADIUS}
+            fill="none"
+            stroke="var(--success)"
+            strokeWidth="9"
+            strokeLinecap="round"
+            strokeDasharray={`${carbLen} 999`}
+            strokeDashoffset={-(proteinLen + fatLen)}
+            className="transition-all duration-500"
+          />
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-lg font-semibold tabular-nums">{fmt(totals.calories, "").trim()}</span>
+          <span className="text-[9px] uppercase tracking-wide text-muted-foreground">kcal</span>
+        </div>
+      </div>
+      <div className="flex flex-1 flex-col gap-2 text-xs">
+        <MacroLegendRow color="var(--primary)" label="Protein" value={`${proteinG} g`} />
+        <MacroLegendRow color="var(--warning)" label="Fat" value={`${fatG} g`} />
+        <MacroLegendRow color="var(--success)" label="Carbs" value={`${carbsG} g`} />
+      </div>
+    </div>
+  );
+}
+
+function MacroLegendRow({ color, label, value }: { color: string; label: string; value: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: color }} />
+      <span className="flex-1 text-muted-foreground">{label}</span>
+      <span className="font-medium tabular-nums">{value}</span>
+    </div>
+  );
 }
 
 function NutrientTable({ profile }: { profile: NutrientProfile }) {

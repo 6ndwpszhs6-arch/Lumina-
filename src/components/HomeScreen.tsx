@@ -9,6 +9,8 @@ import { FORUM_CATEGORIES } from "@/lib/types";
 import { Calculator, Crown, Flame, MessageCircle, Newspaper, ScanBarcode, X } from "lucide-react";
 
 const STREAK_MODAL_KEY = "metabo-streak-modal-shown";
+const RING_RADIUS = 80;
+const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 
 interface Props {
   profile: UserProfile | undefined;
@@ -20,16 +22,20 @@ interface Props {
 
 export default function HomeScreen({ profile, latest, recentPosts, subscription, onNavigate }: Props) {
   const [consumedToday, setConsumedToday] = useState(0);
+  const [macrosToday, setMacrosToday] = useState({ proteinG: 0, fatG: 0, carbsG: 0 });
   const [streak, setStreak] = useState(0);
   const [showStreakModal, setShowStreakModal] = useState(false);
 
   useEffect(() => {
     db.foodLog.toArray().then((rows) => {
       const today = new Date().toISOString().slice(0, 10);
-      const todayTotal = rows
-        .filter((r) => r.date === today)
-        .reduce((sum, r) => sum + (r.nutrients.calories ?? 0), 0);
-      setConsumedToday(Math.round(todayTotal));
+      const todayRows = rows.filter((r) => r.date === today);
+      setConsumedToday(Math.round(todayRows.reduce((sum, r) => sum + (r.nutrients.calories ?? 0), 0)));
+      setMacrosToday({
+        proteinG: Math.round(todayRows.reduce((sum, r) => sum + (r.nutrients.proteinG ?? 0), 0)),
+        fatG: Math.round(todayRows.reduce((sum, r) => sum + (r.nutrients.fatG ?? 0), 0)),
+        carbsG: Math.round(todayRows.reduce((sum, r) => sum + (r.nutrients.carbsG ?? 0), 0)),
+      });
 
       const currentStreak = computeLoggingStreak(rows.map((r) => r.date));
       setStreak(currentStreak);
@@ -47,6 +53,8 @@ export default function HomeScreen({ profile, latest, recentPosts, subscription,
   const percent = latest ? Math.min(consumedToday / latest.targetCalories, 1) * 100 : 0;
   const heroNumber = consumedToday > 0 ? remaining : (latest?.targetCalories ?? 0);
   const animatedHero = useCountUp(heroNumber);
+  const animatedPercent = useCountUp(Math.round(percent), 900);
+  const ringOffset = RING_CIRCUMFERENCE - (animatedPercent / 100) * RING_CIRCUMFERENCE;
 
   return (
     <div className="space-y-8">
@@ -58,32 +66,63 @@ export default function HomeScreen({ profile, latest, recentPosts, subscription,
         </p>
       </section>
 
-      <section className="rounded-2xl border border-border bg-card p-6 text-center">
+      <section className="relative overflow-hidden rounded-2xl border border-border bg-card p-6 text-center">
         {hasTarget ? (
           <>
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            <div
+              aria-hidden
+              className="pointer-events-none absolute left-1/2 top-[38%] h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full blur-sm"
+              style={{
+                background: `radial-gradient(circle, color-mix(in srgb, ${isOver ? "var(--danger)" : "var(--primary)"} 30%, transparent) 0%, transparent 72%)`,
+              }}
+            />
+            <p className="relative text-xs font-medium uppercase tracking-wider text-muted-foreground">
               {consumedToday > 0 ? (isOver ? "Over today's target" : "Calories remaining") : "Today's target"}
             </p>
-            <p className="mt-2 font-serif text-4xl font-semibold tracking-tight text-primary">{animatedHero}</p>
-            {consumedToday > 0 ? (
-              <>
-                <div className="mx-auto mt-3 h-1.5 w-full max-w-[220px] overflow-hidden rounded-full bg-secondary">
-                  <div
-                    className="h-full rounded-full bg-primary transition-all"
-                    style={{ width: `${percent}%` }}
+            <div className="relative mx-auto mt-3 grid h-52 w-52 place-items-center">
+              <svg viewBox="0 0 180 180" className="absolute inset-0 h-full w-full -rotate-90">
+                <circle cx="90" cy="90" r={RING_RADIUS} fill="none" stroke="var(--border)" strokeWidth="9" />
+                {consumedToday > 0 && (
+                  <circle
+                    cx="90"
+                    cy="90"
+                    r={RING_RADIUS}
+                    fill="none"
+                    stroke={isOver ? "var(--danger)" : "var(--success)"}
+                    strokeWidth="9"
+                    strokeLinecap="round"
+                    strokeDasharray={RING_CIRCUMFERENCE}
+                    strokeDashoffset={ringOffset}
                   />
-                </div>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  {consumedToday} of {latest!.targetCalories} kcal logged today
-                </p>
-              </>
+                )}
+              </svg>
+              <div>
+                <p className="font-serif text-5xl font-semibold tracking-tight tabular-nums">{animatedHero}</p>
+                {consumedToday > 0 ? (
+                  <p className="mt-1 text-xs uppercase tracking-wide text-muted-foreground">
+                    of {latest!.targetCalories} kcal
+                  </p>
+                ) : (
+                  <p className="mt-1 text-xs uppercase tracking-wide text-muted-foreground">kcal target</p>
+                )}
+              </div>
+            </div>
+            {consumedToday > 0 ? (
+              <div className="relative mx-auto mt-5 grid max-w-[260px] grid-cols-3 gap-2">
+                <MacroPill label="Protein" value={`${macrosToday.proteinG}g`} />
+                <MacroPill label="Fat" value={`${macrosToday.fatG}g`} />
+                <MacroPill label="Carbs" value={`${macrosToday.carbsG}g`} />
+              </div>
             ) : (
-              <p className="mt-1 text-sm text-muted-foreground">
+              <p className="relative mt-1 text-sm text-muted-foreground">
                 calories &middot; {latest!.proteinG}g protein &middot; {latest!.fatG}g fat &middot; {latest!.carbsG}g
                 carbs
               </p>
             )}
-            <button onClick={() => onNavigate("calculator")} className="mt-4 text-sm font-medium text-primary">
+            <button
+              onClick={() => onNavigate("calculator")}
+              className="relative mt-4 text-sm font-medium text-primary transition active:scale-95"
+            >
               Recalculate →
             </button>
           </>
@@ -95,7 +134,7 @@ export default function HomeScreen({ profile, latest, recentPosts, subscription,
             </p>
             <button
               onClick={() => onNavigate("calculator")}
-              className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground"
+              className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition active:scale-95"
             >
               <Calculator className="h-4 w-4" /> Get started
             </button>
@@ -106,21 +145,26 @@ export default function HomeScreen({ profile, latest, recentPosts, subscription,
       {streak > 0 && (
         <button
           onClick={() => setShowStreakModal(true)}
-          className="mx-auto flex items-center justify-center gap-1.5 text-sm text-muted-foreground transition hover:text-foreground"
+          className="mx-auto flex items-center justify-center gap-1.5 text-sm text-muted-foreground transition hover:text-foreground active:scale-95"
         >
-          <Flame className="h-4 w-4 text-primary" />
+          <Flame className="h-4 w-4 animate-pulse text-primary" />
           {streak}-day logging streak
         </button>
       )}
 
-      <section className="flex items-center justify-center gap-6 text-sm text-muted-foreground">
-        <button onClick={() => onNavigate("chat")} className="flex items-center gap-1.5 transition hover:text-foreground">
-          <MessageCircle className="h-4 w-4" /> Ask a question
+      <section className="flex items-stretch justify-center gap-3">
+        <button
+          onClick={() => onNavigate("chat")}
+          className="flex flex-1 flex-col items-center gap-1.5 rounded-2xl border border-border bg-card px-3 py-3.5 text-xs font-medium transition active:scale-95"
+        >
+          <MessageCircle className="h-5 w-5 text-primary" /> Ask a question
         </button>
-        <span className="text-border">&middot;</span>
-        <button onClick={() => onNavigate("scan")} className="flex items-center gap-1.5 transition hover:text-foreground">
-          <ScanBarcode className="h-4 w-4" /> Scan a food
-          {subscription.tier !== "premium" && <Crown className="h-3 w-3 text-primary" />}
+        <button
+          onClick={() => onNavigate("scan")}
+          className="relative flex flex-1 flex-col items-center gap-1.5 rounded-2xl border border-border bg-card px-3 py-3.5 text-xs font-medium transition active:scale-95"
+        >
+          {subscription.tier !== "premium" && <Crown className="absolute right-3 top-3 h-3 w-3 text-primary" />}
+          <ScanBarcode className="h-5 w-5 text-primary" /> Scan a food
         </button>
       </section>
 
@@ -141,7 +185,7 @@ export default function HomeScreen({ profile, latest, recentPosts, subscription,
               <button
                 key={post.id}
                 onClick={() => onNavigate("forum")}
-                className="flex w-full items-center gap-3 rounded-xl border border-border bg-card p-3 text-left"
+                className="flex w-full items-center gap-3 rounded-xl border border-border bg-card p-3 text-left transition active:scale-[0.99]"
               >
                 {post.imageUrl && (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -202,6 +246,15 @@ export default function HomeScreen({ profile, latest, recentPosts, subscription,
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function MacroPill({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-full bg-secondary px-2 py-2">
+      <p className="text-sm font-semibold tabular-nums">{value}</p>
+      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
     </div>
   );
 }

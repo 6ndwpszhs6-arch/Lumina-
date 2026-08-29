@@ -177,6 +177,38 @@ h3 {
   }
 }
 
+/* TDEE calculator sliders: a live-updating track + thumb matching the
+   primary accent, since the default range input reads as a stray browser
+   control against the rest of the themed UI. */
+.metabo-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 9999px;
+  background: var(--secondary);
+  outline: none;
+}
+.metabo-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 9999px;
+  background: var(--primary);
+  border: 3px solid var(--card-foreground);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+}
+.metabo-slider::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 9999px;
+  background: var(--primary);
+  border: 3px solid var(--card-foreground);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .logo-ring,
   .animate-tab-in,

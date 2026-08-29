@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { generateId } from "@/lib/db";
 import { addTdeeEntrySynced, saveProfileSynced } from "@/lib/sync";
-import { calculateTdee, kgToLb, lbToKg, cmToFtIn, ftInToCm } from "@/lib/tdee";
+import { calculateTdee, kgToLb, cmToFtIn } from "@/lib/tdee";
 import { ACTIVITY_LEVELS, METABOLIC_CONDITIONS } from "@/lib/types";
 import type {
   ActivityLevel,
@@ -16,7 +16,7 @@ import type {
 } from "@/lib/types";
 import { cn, formatDate } from "@/lib/utils";
 import { useCountUp } from "@/lib/useCountUp";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Check } from "lucide-react";
 
 interface Props {
   profile: UserProfile | undefined;
@@ -28,47 +28,33 @@ interface Props {
 export default function TdeeCalculator({ profile, history, onProfileSaved, onHistoryAdded }: Props) {
   const [units, setUnits] = useState<UnitSystem>(profile?.units ?? "metric");
   const [sex, setSex] = useState<Sex>(profile?.sex ?? "female");
-  const [age, setAge] = useState<string>(profile?.age?.toString() ?? "");
-  const [heightCm, setHeightCm] = useState<number | undefined>(profile?.heightCm);
-  const [weightKg, setWeightKg] = useState<number | undefined>(profile?.weightKg);
+  const [age, setAge] = useState(profile?.age ?? 28);
+  const [heightCm, setHeightCm] = useState(profile?.heightCm ?? 168);
+  const [weightKg, setWeightKg] = useState(profile?.weightKg ?? 65);
   const [activityLevel, setActivityLevel] = useState<ActivityLevel>(profile?.activityLevel ?? "sedentary");
   const [goal, setGoal] = useState<Goal>(profile?.goal ?? "maintain");
   const [conditions, setConditions] = useState<MetabolicCondition[]>(profile?.conditions ?? []);
-  const [result, setResult] = useState<ReturnType<typeof calculateTdee> | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const animatedTarget = useCountUp(result?.targetCalories ?? 0);
+  const [saved, setSaved] = useState(false);
 
-  const heightFtIn = heightCm ? cmToFtIn(heightCm) : { ft: 5, inches: 6 };
-  const weightLb = weightKg ? Math.round(kgToLb(weightKg)) : undefined;
+  // Recomputes on every slider drag / segment tap — no "Calculate" step to
+  // see your target; the button below only persists it as today's log entry.
+  const result = calculateTdee({ sex, age, heightCm, weightKg, activityLevel, goal });
+  const animatedTarget = useCountUp(result.targetCalories);
+
+  const heightFtIn = cmToFtIn(heightCm);
+  const weightLb = Math.round(kgToLb(weightKg));
 
   const hasSensitiveCondition = conditions.some((c) => c === "diabetes_type1" || c === "diabetes_type2" || c === "pku");
 
   const toggleCondition = (c: MetabolicCondition) => {
     setConditions((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
+    setSaved(false);
   };
 
-  const handleCalculate = async () => {
-    setError(null);
-    const ageNum = Number(age);
-    if (!ageNum || ageNum <= 0 || ageNum > 120) {
-      setError("Please enter a valid age.");
-      return;
-    }
-    if (!heightCm || heightCm <= 0) {
-      setError("Please enter a valid height.");
-      return;
-    }
-    if (!weightKg || weightKg <= 0) {
-      setError("Please enter a valid weight.");
-      return;
-    }
-
-    const computed = calculateTdee({ sex, age: ageNum, heightCm, weightKg, activityLevel, goal });
-    setResult(computed);
-
+  const handleSave = async () => {
     const savedProfile = await saveProfileSynced({
       sex,
-      age: ageNum,
+      age,
       heightCm,
       weightKg,
       activityLevel,
@@ -86,10 +72,11 @@ export default function TdeeCalculator({ profile, history, onProfileSaved, onHis
       weightKg,
       goal,
       createdAt: new Date().toISOString(),
-      ...computed,
+      ...result,
     };
     await addTdeeEntrySynced(entry);
     onHistoryAdded(entry);
+    setSaved(true);
   };
 
   return (
@@ -97,14 +84,39 @@ export default function TdeeCalculator({ profile, history, onProfileSaved, onHis
       <div>
         <h2 className="font-serif text-2xl font-semibold tracking-tight">Your Calorie Target</h2>
         <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-          A couple of details give you a daily calorie and macro target built around your goal — grounded in the
-          Mifflin-St Jeor equation used by dietitians.
+          Drag the sliders — your target recalculates instantly, grounded in the Mifflin-St Jeor equation used by
+          dietitians.
+        </p>
+      </div>
+
+      {/* Live result */}
+      <div className="rounded-2xl border border-border bg-card p-6 text-center">
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Daily target</p>
+        <p className="mt-2 font-serif text-5xl font-semibold tracking-tight text-primary tabular-nums">
+          {animatedTarget}
+        </p>
+        <p className="mt-1 text-sm text-muted-foreground">calories per day</p>
+        <div className="mt-5 grid grid-cols-3 gap-3 border-t border-border pt-5 text-sm">
+          <Stat label="Protein" value={`${result.proteinG} g`} />
+          <Stat label="Fat" value={`${result.fatG} g`} />
+          <Stat label="Carbs" value={`${result.carbsG} g`} />
+        </div>
+        <p className="mt-4 text-xs text-muted-foreground">
+          BMR {result.bmr} kcal &middot; TDEE {result.tdee} kcal
         </p>
       </div>
 
       <div className="flex gap-2">
-        <SegButton active={units === "metric"} onClick={() => setUnits("metric")} label="Metric (kg/cm)" />
-        <SegButton active={units === "imperial"} onClick={() => setUnits("imperial")} label="Imperial (lb/ft)" />
+        <SegButton
+          active={units === "metric"}
+          onClick={() => setUnits("metric")}
+          label="Metric (kg/cm)"
+        />
+        <SegButton
+          active={units === "imperial"}
+          onClick={() => setUnits("imperial")}
+          label="Imperial (lb/ft)"
+        />
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -112,88 +124,73 @@ export default function TdeeCalculator({ profile, history, onProfileSaved, onHis
         <SegButton active={sex === "male"} onClick={() => setSex("male")} label="Male" />
       </div>
 
-      <Field label="Age (years)">
-        <input
-          type="number"
-          inputMode="numeric"
-          value={age}
-          onChange={(e) => setAge(e.target.value)}
-          className="w-full rounded-xl border border-border bg-card px-3 py-2.5 outline-none focus:ring-2 focus:ring-ring"
-          placeholder="e.g. 28"
-        />
-      </Field>
+      <Slider
+        label="Age"
+        readout={`${age} yrs`}
+        value={age}
+        min={16}
+        max={90}
+        step={1}
+        onChange={(v) => {
+          setAge(v);
+          setSaved(false);
+        }}
+      />
 
-      {units === "metric" ? (
-        <Field label="Height (cm)">
-          <input
-            type="number"
-            inputMode="decimal"
-            value={heightCm ?? ""}
-            onChange={(e) => setHeightCm(e.target.value ? Number(e.target.value) : undefined)}
-            className="w-full rounded-xl border border-border bg-card px-3 py-2.5 outline-none focus:ring-2 focus:ring-ring"
-            placeholder="e.g. 170"
-          />
-        </Field>
-      ) : (
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Height (ft)">
-            <input
-              type="number"
-              inputMode="numeric"
-              value={heightFtIn.ft}
-              onChange={(e) => setHeightCm(ftInToCm(Number(e.target.value) || 0, heightFtIn.inches))}
-              className="w-full rounded-xl border border-border bg-card px-3 py-2.5 outline-none focus:ring-2 focus:ring-ring"
-            />
-          </Field>
-          <Field label="Height (in)">
-            <input
-              type="number"
-              inputMode="numeric"
-              value={heightFtIn.inches}
-              onChange={(e) => setHeightCm(ftInToCm(heightFtIn.ft, Number(e.target.value) || 0))}
-              className="w-full rounded-xl border border-border bg-card px-3 py-2.5 outline-none focus:ring-2 focus:ring-ring"
-            />
-          </Field>
-        </div>
-      )}
+      <Slider
+        label="Height"
+        readout={units === "metric" ? `${heightCm} cm` : `${heightFtIn.ft}′${heightFtIn.inches}″`}
+        value={heightCm}
+        min={140}
+        max={205}
+        step={1}
+        onChange={(v) => {
+          setHeightCm(v);
+          setSaved(false);
+        }}
+      />
 
-      <Field label={units === "metric" ? "Weight (kg)" : "Weight (lb)"}>
-        <input
-          type="number"
-          inputMode="decimal"
-          value={units === "metric" ? weightKg ?? "" : weightLb ?? ""}
-          onChange={(e) => {
-            const v = e.target.value ? Number(e.target.value) : undefined;
-            setWeightKg(v === undefined ? undefined : units === "metric" ? v : lbToKg(v));
-          }}
-          className="w-full rounded-xl border border-border bg-card px-3 py-2.5 outline-none focus:ring-2 focus:ring-ring"
-          placeholder={units === "metric" ? "e.g. 65" : "e.g. 143"}
-        />
-      </Field>
+      <Slider
+        label="Weight"
+        readout={units === "metric" ? `${weightKg} kg` : `${weightLb} lb`}
+        value={weightKg}
+        min={40}
+        max={160}
+        step={0.5}
+        onChange={(v) => {
+          setWeightKg(v);
+          setSaved(false);
+        }}
+      />
 
-      <Field label="Activity level">
-        <select
-          value={activityLevel}
-          onChange={(e) => setActivityLevel(e.target.value as ActivityLevel)}
-          className="w-full rounded-xl border border-border bg-card px-3 py-2.5 outline-none focus:ring-2 focus:ring-ring"
-        >
+      <div>
+        <p className="mb-2 text-sm font-medium text-muted-foreground">Activity level</p>
+        <div className="space-y-1.5">
           {ACTIVITY_LEVELS.map((a) => (
-            <option key={a.value} value={a.value}>
-              {a.label}
-            </option>
+            <ActivityRow
+              key={a.value}
+              active={activityLevel === a.value}
+              label={a.label}
+              onClick={() => {
+                setActivityLevel(a.value);
+                setSaved(false);
+              }}
+            />
           ))}
-        </select>
-      </Field>
-
-      <Field label="Goal">
-        <div className="grid grid-cols-3 gap-2">
-          <SegButton active={goal === "lose"} onClick={() => setGoal("lose")} label="Lose" />
-          <SegButton active={goal === "maintain"} onClick={() => setGoal("maintain")} label="Maintain" />
-          <SegButton active={goal === "gain"} onClick={() => setGoal("gain")} label="Gain" />
         </div>
-      </Field>
+      </div>
 
-      <Field label="Metabolic conditions (optional)">
+      <div>
+        <p className="mb-2 text-sm font-medium text-muted-foreground">Goal</p>
+        <div className="grid grid-cols-3 gap-2">
+          <SegButton active={goal === "lose"} onClick={() => { setGoal("lose"); setSaved(false); }} label="Lose" />
+          <SegButton active={goal === "maintain"} onClick={() => { setGoal("maintain"); setSaved(false); }} label="Maintain" />
+          <SegButton active={goal === "gain"} onClick={() => { setGoal("gain"); setSaved(false); }} label="Gain" />
+        </div>
+      </div>
+
+      <div>
+        <p className="mb-2 text-sm font-medium text-muted-foreground">Metabolic conditions (optional)</p>
         <div className="flex flex-wrap gap-2">
           {METABOLIC_CONDITIONS.map((c) => (
             <button
@@ -201,7 +198,7 @@ export default function TdeeCalculator({ profile, history, onProfileSaved, onHis
               type="button"
               onClick={() => toggleCondition(c.value)}
               className={cn(
-                "rounded-full border px-3 py-1.5 text-sm transition",
+                "rounded-full border px-3 py-1.5 text-sm transition active:scale-95",
                 conditions.includes(c.value)
                   ? "border-primary bg-primary/15 text-primary"
                   : "border-border bg-card text-muted-foreground"
@@ -211,7 +208,7 @@ export default function TdeeCalculator({ profile, history, onProfileSaved, onHis
             </button>
           ))}
         </div>
-      </Field>
+      </div>
 
       {hasSensitiveCondition && (
         <div className="flex gap-2 rounded-xl border border-warning/40 bg-warning/10 p-3 text-sm text-warning">
@@ -223,35 +220,19 @@ export default function TdeeCalculator({ profile, history, onProfileSaved, onHis
         </div>
       )}
 
-      {error && <p className="text-sm text-danger">{error}</p>}
-
       <button
-        onClick={handleCalculate}
-        className="w-full rounded-xl bg-primary py-3 font-medium text-primary-foreground transition active:scale-[0.99]"
+        onClick={handleSave}
+        disabled={saved}
+        className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 font-medium text-primary-foreground transition active:scale-[0.99] disabled:opacity-60"
       >
-        Calculate
+        {saved ? (
+          <>
+            <Check className="h-4 w-4" /> Saved to today&apos;s log
+          </>
+        ) : (
+          "Save as today's target"
+        )}
       </button>
-
-      {result && (
-        <div className="space-y-5 rounded-2xl border border-border bg-card p-6">
-          <div className="text-center">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Your daily target</p>
-            <p className="mt-2 font-serif text-5xl font-semibold tracking-tight text-primary">
-              {animatedTarget}
-            </p>
-            <p className="mt-1 text-sm text-muted-foreground">calories per day</p>
-          </div>
-          <div className="grid grid-cols-2 gap-3 border-t border-border pt-5 text-sm">
-            <Stat label="BMR" value={`${result.bmr} kcal`} />
-            <Stat label="TDEE" value={`${result.tdee} kcal`} />
-          </div>
-          <div className="grid grid-cols-3 gap-3 text-sm">
-            <Stat label="Protein" value={`${result.proteinG} g`} />
-            <Stat label="Fat" value={`${result.fatG} g`} />
-            <Stat label="Carbs" value={`${result.carbsG} g`} />
-          </div>
-        </div>
-      )}
 
       {history.length > 0 && (
         <div>
@@ -286,27 +267,75 @@ export default function TdeeCalculator({ profile, history, onProfileSaved, onHis
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="block space-y-1.5">
-      <span className="text-sm font-medium text-muted-foreground">{label}</span>
-      {children}
-    </label>
-  );
-}
-
 function SegButton({ active, onClick, label }: { active: boolean; onClick: () => void; label: string }) {
   return (
     <button
       type="button"
       onClick={onClick}
       className={cn(
-        "rounded-xl border px-3 py-2.5 text-sm font-medium transition",
+        "min-h-11 flex-1 rounded-xl border px-3 py-2.5 text-sm font-medium transition active:scale-[0.98]",
         active ? "border-primary bg-primary/15 text-primary" : "border-border bg-card text-muted-foreground"
       )}
     >
       {label}
     </button>
+  );
+}
+
+function ActivityRow({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "flex min-h-11 w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left text-sm transition",
+        active ? "border-primary bg-primary/10" : "border-border bg-card"
+      )}
+    >
+      <span
+        className={cn(
+          "h-4 w-4 shrink-0 rounded-full border-[1.5px] transition",
+          active ? "border-primary bg-primary" : "border-border"
+        )}
+      />
+      <span className="flex-1">{label}</span>
+    </button>
+  );
+}
+
+function Slider({
+  label,
+  readout,
+  value,
+  min,
+  max,
+  step,
+  onChange,
+}: {
+  label: string;
+  readout: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <div>
+      <div className="mb-1.5 flex items-baseline justify-between text-sm">
+        <span className="text-muted-foreground">{label}</span>
+        <span className="font-semibold tabular-nums">{readout}</span>
+      </div>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="metabo-slider w-full"
+      />
+    </div>
   );
 }
 
