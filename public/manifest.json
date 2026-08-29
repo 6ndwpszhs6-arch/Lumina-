@@ -20,5 +20,21 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
+  ],
+  "shortcuts": [
+    {
+      "name": "Scan or log food",
+      "short_name": "Scan",
+      "description": "Scan a barcode or log a food",
+      "url": "/?tab=scan",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Metabolic calculator",
+      "short_name": "Calculator",
+      "description": "Recalculate your TDEE and macros",
+      "url": "/?tab=calculator",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
   ]
 }

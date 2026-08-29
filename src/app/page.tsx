@@ -21,10 +21,17 @@ import Logo from "@/components/Logo";
 import { Calculator, Crown, Home, LogIn, MessageCircle, Newspaper, ScanBarcode, User } from "lucide-react";
 
 type Tab = "home" | "calculator" | "scan" | "chat" | "forum" | "profile";
+const TABS: Tab[] = ["home", "calculator", "scan", "chat", "forum", "profile"];
 
 export default function HomePage() {
   const [ready, setReady] = useState(false);
-  const [tab, setTab] = useState<Tab>("home");
+  // Lets the manifest's home-screen shortcuts (e.g. /?tab=scan) open straight
+  // into a tab instead of always landing on Home.
+  const [tab, setTab] = useState<Tab>(() => {
+    if (typeof window === "undefined") return "home";
+    const requested = new URLSearchParams(window.location.search).get("tab");
+    return (TABS as string[]).includes(requested ?? "") ? (requested as Tab) : "home";
+  });
   const [profile, setProfile] = useState<UserProfile | undefined>();
   const [history, setHistory] = useState<TdeeLogEntry[]>([]);
   const [posts, setPosts] = useState<ForumPost[]>([]);
@@ -64,6 +71,40 @@ export default function HomePage() {
     }
     init();
   }, []);
+
+  // Drop the shortcut's ?tab= param once read, without touching any other
+  // query params (e.g. the Stripe checkout redirect below).
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has("tab")) return;
+    params.delete("tab");
+    const qs = params.toString();
+    window.history.replaceState({}, "", window.location.pathname + (qs ? `?${qs}` : ""));
+  }, []);
+
+  // Badging API: a plain dot on the home-screen icon nudging premium users
+  // who haven't logged any food yet today — cleared the moment they have.
+  // Best-effort and premium-only (logging itself is a premium feature), and
+  // silently unsupported on browsers without the Badging API (e.g. Safari).
+  useEffect(() => {
+    if (!ready || subscription?.tier !== "premium") return;
+    if (!("setAppBadge" in navigator)) return;
+
+    async function updateBadge() {
+      try {
+        const today = new Date().toISOString().slice(0, 10);
+        const count = await db.foodLog.where("date").equals(today).count();
+        if (count > 0) await navigator.clearAppBadge();
+        else await navigator.setAppBadge();
+      } catch {
+        // Best-effort only.
+      }
+    }
+
+    updateBadge();
+    document.addEventListener("visibilitychange", updateBadge);
+    return () => document.removeEventListener("visibilitychange", updateBadge);
+  }, [ready, subscription]);
 
   function dismissSignIn() {
     setOnboarded();
