@@ -41,6 +41,16 @@ export default function HomePage() {
   const [dismissedA2hs, setDismissedA2hs] = useState(false);
   const lastSyncedUserId = useRef<string | null>(null);
 
+  // Registers the installability-only service worker (see public/sw.js) so
+  // Chrome/Android/desktop offer the native install prompt used by
+  // AddToHomeScreenScreen — it does no caching, so it can't serve stale
+  // content after a deploy.
+  useEffect(() => {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").catch(() => {});
+    }
+  }, []);
+
   useEffect(() => {
     async function init() {
       const settings = await ensureSettings();
